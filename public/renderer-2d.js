@@ -1,20 +1,7 @@
-// renderer-2d.js — Canvas 2D floorplan renderer
+// renderer-2d.js — Canvas 2D architectural floorplan renderer
+// Black walls on white background, proper door/window symbols, mitered wall joints
 
 const GRID_SIZE = 1; // 1 meter grid
-const COLORS = {
-  bg: '#1a1a2e',
-  grid: '#16213e',
-  gridMajor: '#1a3a5c',
-  wall: '#e0e0e0',
-  wallStroke: '#ffffff',
-  door: '#4fc3f7',
-  doorArc: 'rgba(79, 195, 247, 0.3)',
-  window: '#81c784',
-  windowGlass: 'rgba(129, 199, 132, 0.4)',
-  text: '#aaaaaa',
-  selection: '#ff9800',
-  dimension: '#888888',
-};
 
 export class Renderer2D {
   constructor(canvas) {
@@ -25,7 +12,7 @@ export class Renderer2D {
     this.offsetY = 0;
     this.selectedId = null;
 
-    // Pan & zoom
+    // Pan & zoom (mouse)
     this._dragging = false;
     this._lastMouse = { x: 0, y: 0 };
 
@@ -35,42 +22,29 @@ export class Renderer2D {
       const rect = canvas.getBoundingClientRect();
       const mx = e.clientX - rect.left;
       const my = e.clientY - rect.top;
-      // Zoom towards mouse
       this.offsetX = mx - (mx - this.offsetX) * zoomFactor;
       this.offsetY = my - (my - this.offsetY) * zoomFactor;
       this.scale *= zoomFactor;
-      this._needsRender = true;
     });
 
     canvas.addEventListener('mousedown', (e) => {
-      if (e.button === 1 || e.button === 0 && e.shiftKey) {
+      if (e.button === 1 || (e.button === 0 && e.shiftKey)) {
         this._dragging = true;
         this._lastMouse = { x: e.clientX, y: e.clientY };
         canvas.style.cursor = 'grabbing';
       }
     });
-
     canvas.addEventListener('mousemove', (e) => {
       if (this._dragging) {
         this.offsetX += e.clientX - this._lastMouse.x;
         this.offsetY += e.clientY - this._lastMouse.y;
         this._lastMouse = { x: e.clientX, y: e.clientY };
-        this._needsRender = true;
       }
     });
-
-    canvas.addEventListener('mouseup', () => {
-      this._dragging = false;
-      canvas.style.cursor = 'default';
-    });
-
-    canvas.addEventListener('mouseleave', () => {
-      this._dragging = false;
-      canvas.style.cursor = 'default';
-    });
+    canvas.addEventListener('mouseup', () => { this._dragging = false; canvas.style.cursor = 'default'; });
+    canvas.addEventListener('mouseleave', () => { this._dragging = false; canvas.style.cursor = 'default'; });
 
     // Touch support (iOS / mobile)
-    this._touches = {};
     canvas.addEventListener('touchstart', (e) => {
       e.preventDefault();
       if (e.touches.length === 1) {
@@ -91,7 +65,6 @@ export class Renderer2D {
         this.offsetX += e.touches[0].clientX - this._lastMouse.x;
         this.offsetY += e.touches[0].clientY - this._lastMouse.y;
         this._lastMouse = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-        this._needsRender = true;
       }
       if (e.touches.length === 2 && this._pinchDist) {
         const newDist = Math.hypot(
@@ -106,24 +79,14 @@ export class Renderer2D {
         this.offsetY = my - (my - this.offsetY) * zoomFactor;
         this.scale *= zoomFactor;
         this._pinchDist = newDist;
-        this._needsRender = true;
       }
     }, { passive: false });
 
-    canvas.addEventListener('touchend', (e) => {
-      this._dragging = false;
-      this._pinchDist = null;
-    });
-
-    this._needsRender = true;
+    canvas.addEventListener('touchend', () => { this._dragging = false; this._pinchDist = null; });
   }
 
-  // Convert model coordinates to screen
   toScreen(x, y) {
-    return {
-      x: x * this.scale + this.offsetX,
-      y: y * this.scale + this.offsetY,
-    };
+    return { x: x * this.scale + this.offsetX, y: y * this.scale + this.offsetY };
   }
 
   resize() {
@@ -134,20 +97,17 @@ export class Renderer2D {
     this.canvas.style.width = rect.width + 'px';
     this.canvas.style.height = rect.height + 'px';
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    this._needsRender = true;
   }
 
   centerOn(model) {
     const storey = model.storeys.find((s) => s.id === model.activeStorey) || model.storeys[0];
+    const w = this.canvas.width / (window.devicePixelRatio || 1);
+    const h = this.canvas.height / (window.devicePixelRatio || 1);
     if (!storey || storey.walls.length === 0) {
-      // Center on origin
-      const w = this.canvas.width / (window.devicePixelRatio || 1);
-      const h = this.canvas.height / (window.devicePixelRatio || 1);
       this.offsetX = w / 2;
       this.offsetY = h / 2;
       return;
     }
-
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     for (const wall of storey.walls) {
       minX = Math.min(minX, wall.start.x, wall.end.x);
@@ -155,11 +115,8 @@ export class Renderer2D {
       maxX = Math.max(maxX, wall.start.x, wall.end.x);
       maxY = Math.max(maxY, wall.start.y, wall.end.y);
     }
-
     const cx = (minX + maxX) / 2;
     const cy = (minY + maxY) / 2;
-    const w = this.canvas.width / (window.devicePixelRatio || 1);
-    const h = this.canvas.height / (window.devicePixelRatio || 1);
     const spanX = maxX - minX + 4;
     const spanY = maxY - minY + 4;
     this.scale = Math.min(w / spanX, h / spanY, 80);
@@ -167,48 +124,63 @@ export class Renderer2D {
     this.offsetY = h / 2 - cy * this.scale;
   }
 
+  // ── Main render ───────────────────────────────────────────────
+
   render(model) {
     const ctx = this.ctx;
     const w = this.canvas.width / (window.devicePixelRatio || 1);
     const h = this.canvas.height / (window.devicePixelRatio || 1);
 
-    // Background
-    ctx.fillStyle = COLORS.bg;
+    // White background (architectural plan style)
+    ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, w, h);
 
-    // Grid
+    // Light grid
     this._drawGrid(w, h);
 
     const storey = model.storeys.find((s) => s.id === model.activeStorey) || model.storeys[0];
     if (!storey) return;
 
-    // Draw walls
+    // Compute wall joint miters
+    const miters = this._computeMiters(storey.walls);
+
+    // Draw walls as filled black polygons with mitered joints
+    this._drawWalls(storey.walls, miters);
+
+    // Draw openings on top (they cut into the black walls)
     for (const wall of storey.walls) {
-      this._drawWall(wall);
+      for (const opening of wall.openings) {
+        this._drawOpening(wall, opening);
+      }
     }
 
-    // Labels
-    ctx.fillStyle = COLORS.text;
-    ctx.font = '12px monospace';
-    ctx.fillText(`${storey.name} | ${model.name}`, 10, h - 10);
+    // Dimension labels
+    this._drawDimensions(storey.walls);
 
-    // Scale indicator
+    // Info label
+    ctx.fillStyle = '#999999';
+    ctx.font = '11px "Helvetica Neue", Helvetica, Arial, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(`${storey.name}  —  ${model.name}`, 10, h - 8);
+
+    // Scale bar
     this._drawScaleBar(w, h);
   }
+
+  // ── Grid ──────────────────────────────────────────────────────
 
   _drawGrid(w, h) {
     const ctx = this.ctx;
     const step = GRID_SIZE * this.scale;
-    if (step < 5) return; // Too zoomed out
+    if (step < 8) return;
 
     const startX = this.offsetX % step;
     const startY = this.offsetY % step;
-    const majorEvery = 5;
 
-    ctx.lineWidth = 0.5;
     for (let x = startX; x < w; x += step) {
       const worldX = Math.round((x - this.offsetX) / this.scale);
-      ctx.strokeStyle = worldX % majorEvery === 0 ? COLORS.gridMajor : COLORS.grid;
+      ctx.strokeStyle = worldX % 5 === 0 ? '#d0d0d0' : '#e8e8e8';
+      ctx.lineWidth = worldX % 5 === 0 ? 0.5 : 0.3;
       ctx.beginPath();
       ctx.moveTo(x, 0);
       ctx.lineTo(x, h);
@@ -216,7 +188,8 @@ export class Renderer2D {
     }
     for (let y = startY; y < h; y += step) {
       const worldY = Math.round((y - this.offsetY) / this.scale);
-      ctx.strokeStyle = worldY % majorEvery === 0 ? COLORS.gridMajor : COLORS.grid;
+      ctx.strokeStyle = worldY % 5 === 0 ? '#d0d0d0' : '#e8e8e8';
+      ctx.lineWidth = worldY % 5 === 0 ? 0.5 : 0.3;
       ctx.beginPath();
       ctx.moveTo(0, y);
       ctx.lineTo(w, y);
@@ -224,166 +197,333 @@ export class Renderer2D {
     }
   }
 
-  _drawWall(wall) {
-    const ctx = this.ctx;
-    const s = this.toScreen(wall.start.x, wall.start.y);
-    const e = this.toScreen(wall.end.x, wall.end.y);
+  // ── Wall joint mitering ───────────────────────────────────────
+
+  _computeMiters(walls) {
+    // For each wall endpoint, find connected walls and compute miter points
+    // Result: Map<wallId, { start: [outerPt, innerPt] | null, end: [outerPt, innerPt] | null }>
+    const TOLERANCE = 0.01;
+    const result = new Map();
+
+    for (const wall of walls) {
+      result.set(wall.id, { start: null, end: null });
+    }
+
+    for (let i = 0; i < walls.length; i++) {
+      for (let j = i + 1; j < walls.length; j++) {
+        const w1 = walls[i];
+        const w2 = walls[j];
+
+        // Check all 4 endpoint combinations
+        const pairs = [
+          { p1: w1.start, p2: w2.start, e1: 'start', e2: 'start' },
+          { p1: w1.start, p2: w2.end,   e1: 'start', e2: 'end' },
+          { p1: w1.end,   p2: w2.start, e1: 'end',   e2: 'start' },
+          { p1: w1.end,   p2: w2.end,   e1: 'end',   e2: 'end' },
+        ];
+
+        for (const { p1, p2, e1, e2 } of pairs) {
+          const dist = Math.hypot(p1.x - p2.x, p1.y - p2.y);
+          if (dist > TOLERANCE) continue;
+
+          // These walls share an endpoint — compute miter
+          const miter = this._miterJoint(w1, e1, w2, e2);
+          if (miter) {
+            result.get(w1.id)[e1] = miter.w1;
+            result.get(w2.id)[e2] = miter.w2;
+          }
+        }
+      }
+    }
+    return result;
+  }
+
+  _miterJoint(w1, end1, w2, end2) {
+    // Get wall direction vectors (pointing away from the shared endpoint)
+    const d1 = this._wallDir(w1, end1);
+    const d2 = this._wallDir(w2, end2);
+    if (!d1 || !d2) return null;
+
+    const halfT1 = w1.thickness / 2;
+    const halfT2 = w2.thickness / 2;
+
+    // Normal vectors (perpendicular, pointing "left" of direction)
+    const n1 = { x: -d1.y, y: d1.x };
+    const n2 = { x: -d2.y, y: d2.x };
+
+    const shared = end1 === 'start' ? w1.start : w1.end;
+
+    // Outer edges (offset by +halfT along normal)
+    const outer1_a = { x: shared.x + n1.x * halfT1, y: shared.y + n1.y * halfT1 };
+    const outer1_b = { x: outer1_a.x + d1.x, y: outer1_a.y + d1.y };
+    const outer2_a = { x: shared.x + n2.x * halfT2, y: shared.y + n2.y * halfT2 };
+    const outer2_b = { x: outer2_a.x + d2.x, y: outer2_a.y + d2.y };
+
+    // Inner edges (offset by -halfT along normal)
+    const inner1_a = { x: shared.x - n1.x * halfT1, y: shared.y - n1.y * halfT1 };
+    const inner1_b = { x: inner1_a.x + d1.x, y: inner1_a.y + d1.y };
+    const inner2_a = { x: shared.x - n2.x * halfT2, y: shared.y - n2.y * halfT2 };
+    const inner2_b = { x: inner2_a.x + d2.x, y: inner2_a.y + d2.y };
+
+    // Find intersections of outer-outer and inner-inner
+    const outerMiter = lineIntersect(outer1_a, outer1_b, outer2_a, outer2_b);
+    const innerMiter = lineIntersect(inner1_a, inner1_b, inner2_a, inner2_b);
+
+    if (!outerMiter || !innerMiter) return null;
+
+    // Miter limit: if angle is too acute, the miter point goes too far
+    const miterDist = Math.hypot(outerMiter.x - shared.x, outerMiter.y - shared.y);
+    const maxMiter = Math.max(halfT1, halfT2) * 4;
+    if (miterDist > maxMiter) return null; // Fall back to default (no miter)
+
+    return {
+      w1: { outer: outerMiter, inner: innerMiter },
+      w2: { outer: innerMiter, inner: outerMiter }, // Swapped for the other wall
+    };
+  }
+
+  _wallDir(wall, fromEnd) {
     const dx = wall.end.x - wall.start.x;
     const dy = wall.end.y - wall.start.y;
     const len = Math.sqrt(dx * dx + dy * dy);
-    if (len === 0) return;
-
-    const nx = -dy / len; // normal
-    const ny = dx / len;
-    const halfT = (wall.thickness / 2) * this.scale;
-
-    const isSelected = wall.id === this.selectedId;
-
-    // Wall polygon (thick line)
-    ctx.fillStyle = isSelected ? COLORS.selection : COLORS.wall;
-    ctx.strokeStyle = COLORS.wallStroke;
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(s.x + nx * halfT, s.y + ny * halfT);
-    ctx.lineTo(e.x + nx * halfT, e.y + ny * halfT);
-    ctx.lineTo(e.x - nx * halfT, e.y - ny * halfT);
-    ctx.lineTo(s.x - nx * halfT, s.y - ny * halfT);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-
-    // Draw openings
-    for (const opening of wall.openings) {
-      this._drawOpening(wall, opening, s, e, len, nx, ny);
+    if (len === 0) return null;
+    // Direction pointing AWAY from the shared endpoint (into the wall)
+    if (fromEnd === 'start') {
+      return { x: dx / len, y: dy / len };
+    } else {
+      return { x: -dx / len, y: -dy / len };
     }
-
-    // Dimension label
-    ctx.fillStyle = COLORS.dimension;
-    ctx.font = '10px monospace';
-    const mx = (s.x + e.x) / 2;
-    const my = (s.y + e.y) / 2;
-    ctx.fillText(`${len.toFixed(1)}m`, mx + nx * halfT + 4, my + ny * halfT + 4);
   }
 
-  _drawOpening(wall, opening, screenStart, screenEnd, wallLen, nx, ny) {
+  // ── Draw walls with miters ────────────────────────────────────
+
+  _drawWalls(walls, miters) {
+    const ctx = this.ctx;
+
+    for (const wall of walls) {
+      const dx = wall.end.x - wall.start.x;
+      const dy = wall.end.y - wall.start.y;
+      const len = Math.sqrt(dx * dx + dy * dy);
+      if (len === 0) continue;
+
+      const nx = -dy / len;
+      const ny = dx / len;
+      const halfT = wall.thickness / 2;
+
+      const miter = miters.get(wall.id);
+
+      // Default corner points (no miter)
+      let startOuter = { x: wall.start.x + nx * halfT, y: wall.start.y + ny * halfT };
+      let startInner = { x: wall.start.x - nx * halfT, y: wall.start.y - ny * halfT };
+      let endOuter   = { x: wall.end.x + nx * halfT,   y: wall.end.y + ny * halfT };
+      let endInner   = { x: wall.end.x - nx * halfT,   y: wall.end.y - ny * halfT };
+
+      // Apply miters
+      if (miter?.start) {
+        startOuter = miter.start.outer;
+        startInner = miter.start.inner;
+      }
+      if (miter?.end) {
+        endOuter = miter.end.outer;
+        endInner = miter.end.inner;
+      }
+
+      // Convert to screen coords
+      const so = this.toScreen(startOuter.x, startOuter.y);
+      const si = this.toScreen(startInner.x, startInner.y);
+      const eo = this.toScreen(endOuter.x, endOuter.y);
+      const ei = this.toScreen(endInner.x, endInner.y);
+
+      const isSelected = wall.id === this.selectedId;
+
+      // Fill wall polygon (solid black)
+      ctx.fillStyle = isSelected ? '#cc0000' : '#000000';
+      ctx.beginPath();
+      ctx.moveTo(so.x, so.y);
+      ctx.lineTo(eo.x, eo.y);
+      ctx.lineTo(ei.x, ei.y);
+      ctx.lineTo(si.x, si.y);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+
+  // ── Draw openings ─────────────────────────────────────────────
+
+  _drawOpening(wall, opening) {
     const ctx = this.ctx;
     const dx = wall.end.x - wall.start.x;
     const dy = wall.end.y - wall.start.y;
-    const t = opening.position / wallLen;
-    const halfW = (opening.width / 2) / wallLen;
+    const wallLen = Math.sqrt(dx * dx + dy * dy);
+    if (wallLen === 0) return;
 
-    const t1 = t - halfW;
-    const t2 = t + halfW;
-
-    const p1 = this.toScreen(
-      wall.start.x + dx * t1,
-      wall.start.y + dy * t1,
-    );
-    const p2 = this.toScreen(
-      wall.start.x + dx * t2,
-      wall.start.y + dy * t2,
-    );
-
+    const nx = -dy / wallLen;
+    const ny = dx / wallLen;
     const halfT = (wall.thickness / 2) * this.scale;
-    const isSelected = opening.id === this.selectedId;
+    const halfW = opening.width / 2;
 
-    // Clear the wall section where the opening is
-    ctx.fillStyle = COLORS.bg;
+    // Opening center and edges along wall
+    const t1 = (opening.position - halfW) / wallLen;
+    const t2 = (opening.position + halfW) / wallLen;
+
+    const p1 = this.toScreen(wall.start.x + dx * t1, wall.start.y + dy * t1);
+    const p2 = this.toScreen(wall.start.x + dx * t2, wall.start.y + dy * t2);
+
+    // Clear the wall section (white rectangle)
+    ctx.fillStyle = '#ffffff';
     ctx.beginPath();
-    ctx.moveTo(p1.x + nx * (halfT + 1), p1.y + ny * (halfT + 1));
-    ctx.lineTo(p2.x + nx * (halfT + 1), p2.y + ny * (halfT + 1));
-    ctx.lineTo(p2.x - nx * (halfT + 1), p2.y - ny * (halfT + 1));
-    ctx.lineTo(p1.x - nx * (halfT + 1), p1.y - ny * (halfT + 1));
+    ctx.moveTo(p1.x + nx * (halfT + 2), p1.y + ny * (halfT + 2));
+    ctx.lineTo(p2.x + nx * (halfT + 2), p2.y + ny * (halfT + 2));
+    ctx.lineTo(p2.x - nx * (halfT + 2), p2.y - ny * (halfT + 2));
+    ctx.lineTo(p1.x - nx * (halfT + 2), p1.y - ny * (halfT + 2));
     ctx.closePath();
     ctx.fill();
 
     if (opening.type === 'door') {
-      // Door: draw swing arc
-      const color = isSelected ? COLORS.selection : COLORS.door;
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 2;
-
-      // Door leaf line
-      ctx.beginPath();
-      ctx.moveTo(p1.x, p1.y);
-      ctx.lineTo(p1.x + nx * opening.width * this.scale, p1.y + ny * opening.width * this.scale);
-      ctx.stroke();
-
-      // Arc
-      ctx.fillStyle = isSelected ? 'rgba(255,152,0,0.15)' : COLORS.doorArc;
-      ctx.beginPath();
-      const angle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
-      const arcAngle = Math.atan2(ny, nx);
-      ctx.arc(p1.x, p1.y, opening.width * this.scale, arcAngle, angle, false);
-      ctx.lineTo(p1.x, p1.y);
-      ctx.fill();
-      ctx.stroke();
-
-      // Threshold lines
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.moveTo(p1.x + nx * halfT, p1.y + ny * halfT);
-      ctx.lineTo(p1.x - nx * halfT, p1.y - ny * halfT);
-      ctx.moveTo(p2.x + nx * halfT, p2.y + ny * halfT);
-      ctx.lineTo(p2.x - nx * halfT, p2.y - ny * halfT);
-      ctx.stroke();
+      this._drawDoor(p1, p2, nx, ny, halfT, opening);
     } else {
-      // Window: parallel lines
-      const color = isSelected ? COLORS.selection : COLORS.window;
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 2;
-
-      // Three parallel lines across the opening
-      for (const offset of [-0.3, 0, 0.3]) {
-        const ox = nx * halfT * offset;
-        const oy = ny * halfT * offset;
-        ctx.beginPath();
-        ctx.moveTo(p1.x + ox, p1.y + oy);
-        ctx.lineTo(p2.x + ox, p2.y + oy);
-        ctx.stroke();
-      }
-
-      // Glass fill
-      ctx.fillStyle = isSelected ? 'rgba(255,152,0,0.15)' : COLORS.windowGlass;
-      ctx.fillRect(
-        Math.min(p1.x, p2.x) - Math.abs(nx * halfT * 0.3),
-        Math.min(p1.y, p2.y) - Math.abs(ny * halfT * 0.3),
-        Math.abs(p2.x - p1.x) + Math.abs(nx * halfT * 0.6) || Math.abs(nx * halfT * 0.6),
-        Math.abs(p2.y - p1.y) + Math.abs(ny * halfT * 0.6) || Math.abs(ny * halfT * 0.6),
-      );
-
-      // Sill lines
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.moveTo(p1.x + nx * halfT, p1.y + ny * halfT);
-      ctx.lineTo(p1.x - nx * halfT, p1.y - ny * halfT);
-      ctx.moveTo(p2.x + nx * halfT, p2.y + ny * halfT);
-      ctx.lineTo(p2.x - nx * halfT, p2.y - ny * halfT);
-      ctx.stroke();
+      this._drawWindow(p1, p2, nx, ny, halfT, opening);
     }
   }
 
+  _drawDoor(p1, p2, nx, ny, halfT, opening) {
+    const ctx = this.ctx;
+    const doorWidth = opening.width * this.scale;
+
+    ctx.strokeStyle = '#000000';
+    ctx.fillStyle = 'none';
+    ctx.lineWidth = 1;
+
+    // Jamb lines (short perpendicular lines at wall edge)
+    ctx.beginPath();
+    ctx.moveTo(p1.x + nx * halfT, p1.y + ny * halfT);
+    ctx.lineTo(p1.x - nx * halfT, p1.y - ny * halfT);
+    ctx.moveTo(p2.x + nx * halfT, p2.y + ny * halfT);
+    ctx.lineTo(p2.x - nx * halfT, p2.y - ny * halfT);
+    ctx.stroke();
+
+    // Door leaf (thin line from hinge to open position)
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(p1.x, p1.y);
+    ctx.lineTo(p1.x + nx * doorWidth, p1.y + ny * doorWidth);
+    ctx.stroke();
+
+    // Quarter-circle arc (door swing)
+    ctx.lineWidth = 0.7;
+    const angle1 = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+    const angle2 = Math.atan2(ny, nx);
+    ctx.beginPath();
+    ctx.arc(p1.x, p1.y, doorWidth, angle2, angle1, false);
+    ctx.stroke();
+  }
+
+  _drawWindow(p1, p2, nx, ny, halfT, opening) {
+    const ctx = this.ctx;
+
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 1;
+
+    // Jamb lines
+    ctx.beginPath();
+    ctx.moveTo(p1.x + nx * halfT, p1.y + ny * halfT);
+    ctx.lineTo(p1.x - nx * halfT, p1.y - ny * halfT);
+    ctx.moveTo(p2.x + nx * halfT, p2.y + ny * halfT);
+    ctx.lineTo(p2.x - nx * halfT, p2.y - ny * halfT);
+    ctx.stroke();
+
+    // Window frame: two parallel lines along wall thickness
+    const frameOffset = halfT * 0.35;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(p1.x + nx * frameOffset, p1.y + ny * frameOffset);
+    ctx.lineTo(p2.x + nx * frameOffset, p2.y + ny * frameOffset);
+    ctx.moveTo(p1.x - nx * frameOffset, p1.y - ny * frameOffset);
+    ctx.lineTo(p2.x - nx * frameOffset, p2.y - ny * frameOffset);
+    ctx.stroke();
+
+    // Glass pane line (center)
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    ctx.moveTo(p1.x, p1.y);
+    ctx.lineTo(p2.x, p2.y);
+    ctx.stroke();
+  }
+
+  // ── Dimensions ────────────────────────────────────────────────
+
+  _drawDimensions(walls) {
+    const ctx = this.ctx;
+    ctx.fillStyle = '#666666';
+    ctx.font = '9px "Helvetica Neue", Helvetica, Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    for (const wall of walls) {
+      const dx = wall.end.x - wall.start.x;
+      const dy = wall.end.y - wall.start.y;
+      const len = Math.sqrt(dx * dx + dy * dy);
+      if (len < 0.5) continue;
+
+      const nx = -dy / len;
+      const ny = dx / len;
+      const offset = (wall.thickness / 2 + 0.3) * this.scale;
+
+      const mx = (wall.start.x + wall.end.x) / 2;
+      const my = (wall.start.y + wall.end.y) / 2;
+      const s = this.toScreen(mx + nx * (wall.thickness / 2 + 0.3), my + ny * (wall.thickness / 2 + 0.3));
+
+      // Rotate text along wall
+      const angle = Math.atan2(dy, dx);
+      ctx.save();
+      ctx.translate(s.x, s.y);
+      let rotation = -angle;
+      // Keep text readable (not upside down)
+      if (rotation > Math.PI / 2 || rotation < -Math.PI / 2) {
+        rotation += Math.PI;
+      }
+      ctx.rotate(rotation);
+      ctx.fillText(`${len.toFixed(1)}`, 0, 0);
+      ctx.restore();
+    }
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+  }
+
+  // ── Scale bar ─────────────────────────────────────────────────
+
   _drawScaleBar(w, h) {
     const ctx = this.ctx;
-    const barLen = this.scale; // 1 meter in pixels
+    const barLen = this.scale; // 1 meter
     const x = w - barLen - 20;
-    const y = h - 25;
+    const y = h - 20;
 
-    ctx.strokeStyle = COLORS.text;
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 1.5;
     ctx.beginPath();
     ctx.moveTo(x, y);
     ctx.lineTo(x + barLen, y);
-    ctx.moveTo(x, y - 4);
-    ctx.lineTo(x, y + 4);
-    ctx.moveTo(x + barLen, y - 4);
-    ctx.lineTo(x + barLen, y + 4);
+    ctx.moveTo(x, y - 3);
+    ctx.lineTo(x, y + 3);
+    ctx.moveTo(x + barLen, y - 3);
+    ctx.lineTo(x + barLen, y + 3);
     ctx.stroke();
 
-    ctx.fillStyle = COLORS.text;
-    ctx.font = '10px monospace';
+    ctx.fillStyle = '#000000';
+    ctx.font = '9px "Helvetica Neue", Helvetica, Arial, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('1m', x + barLen / 2, y - 6);
+    ctx.fillText('1 m', x + barLen / 2, y - 6);
     ctx.textAlign = 'left';
   }
+}
+
+// ── Geometry helpers ──────────────────────────────────────────
+
+function lineIntersect(a1, a2, b1, b2) {
+  const dx1 = a2.x - a1.x, dy1 = a2.y - a1.y;
+  const dx2 = b2.x - b1.x, dy2 = b2.y - b1.y;
+  const denom = dx1 * dy2 - dy1 * dx2;
+  if (Math.abs(denom) < 1e-10) return null; // Parallel
+  const t = ((b1.x - a1.x) * dy2 - (b1.y - a1.y) * dx2) / denom;
+  return { x: a1.x + t * dx1, y: a1.y + t * dy1 };
 }
