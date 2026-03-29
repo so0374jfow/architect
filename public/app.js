@@ -15,29 +15,79 @@ import { downloadIFC } from './ifc-exporter.js';
 
 function createDemoModel() {
   const m = createDefaultModel();
-  m.name = 'Sample House';
+  m.name = 'Eight Rooms';
 
-  // Living room
-  const living = createRoom(m, { x: 0, y: 0, width: 6, depth: 4 });
-  addOpening(m, { wallId: living.walls[0].id, type: 'door', position: 1.5, width: 0.9, height: 2.1 });
-  addOpening(m, { wallId: living.walls[2].id, type: 'window', position: 3, width: 2.0, height: 1.4, sillHeight: 0.8 });
-  addOpening(m, { wallId: living.walls[1].id, type: 'window', position: 2, width: 1.5, height: 1.2, sillHeight: 0.9 });
+  // Cross/plus shaped layout — all rooms 4×4m (16m²)
+  //
+  //            +------+
+  //            |  R1  |
+  //   +--------+------+--------+
+  //   |  R2   |  R3   |  R4   |
+  //   +--------+------+--------+
+  //   |  R5   |  R6   |  R7   |
+  //   +--------+------+--------+
+  //            |  R8  |
+  //            +------+
 
-  // Kitchen (adjacent east)
-  const kitchen = createRoom(m, { x: 6, y: 0, width: 4, depth: 4 });
-  addOpening(m, { wallId: kitchen.walls[1].id, type: 'window', position: 2, width: 1.2, height: 1.2, sillHeight: 0.9 });
-  addOpening(m, { wallId: kitchen.walls[3].id, type: 'door', position: 2, width: 0.9, height: 2.1 });
+  const r1 = createRoom(m, { x: 4, y: 12, width: 4, depth: 4 });
+  const r2 = createRoom(m, { x: 0, y: 8,  width: 4, depth: 4 });
+  const r3 = createRoom(m, { x: 4, y: 8,  width: 4, depth: 4 });
+  const r4 = createRoom(m, { x: 8, y: 8,  width: 4, depth: 4 });
+  const r5 = createRoom(m, { x: 0, y: 4,  width: 4, depth: 4 });
+  const r6 = createRoom(m, { x: 4, y: 4,  width: 4, depth: 4 });
+  const r7 = createRoom(m, { x: 8, y: 4,  width: 4, depth: 4 });
+  const r8 = createRoom(m, { x: 4, y: 0,  width: 4, depth: 4 });
 
-  // Bedroom (north of living room)
-  const bedroom = createRoom(m, { x: 0, y: 4, width: 5, depth: 3.5 });
-  addOpening(m, { wallId: bedroom.walls[0].id, type: 'door', position: 2.5, width: 0.8, height: 2.1 });
-  addOpening(m, { wallId: bedroom.walls[2].id, type: 'window', position: 2.5, width: 1.8, height: 1.3, sillHeight: 0.9 });
-  addOpening(m, { wallId: bedroom.walls[3].id, type: 'window', position: 1.75, width: 1.0, height: 1.2, sillHeight: 0.9 });
+  // ── 9 internal doors — varied positions for geometric play ──
 
-  // Bathroom (north of kitchen)
-  const bath = createRoom(m, { x: 5, y: 4, width: 3, depth: 2.5 });
-  addOpening(m, { wallId: bath.walls[3].id, type: 'door', position: 1.25, width: 0.7, height: 2.1 });
-  addOpening(m, { wallId: bath.walls[1].id, type: 'window', position: 1.25, width: 0.6, height: 0.6, sillHeight: 1.4 });
+  // R1 ↔ R3 (south wall of R1) — offset left
+  addOpening(m, { wallId: r1.walls[0].id, type: 'door', position: 1.0, width: 0.9, height: 2.1 });
+  // R2 ↔ R3 (east wall of R2) — high up
+  addOpening(m, { wallId: r2.walls[1].id, type: 'door', position: 2.8, width: 0.9, height: 2.1 });
+  // R2 ↔ R5 (north wall of R5) — offset from right
+  addOpening(m, { wallId: r5.walls[2].id, type: 'door', position: 2.5, width: 0.9, height: 2.1 });
+  // R3 ↔ R4 (east wall of R3) — low
+  addOpening(m, { wallId: r3.walls[1].id, type: 'door', position: 1.2, width: 0.9, height: 2.1 });
+  // R3 ↔ R6 (south wall of R3) — far right
+  addOpening(m, { wallId: r3.walls[0].id, type: 'door', position: 3.2, width: 0.9, height: 2.1 });
+  // R4 ↔ R7 (south wall of R4) — left-center
+  addOpening(m, { wallId: r4.walls[0].id, type: 'door', position: 1.5, width: 0.9, height: 2.1 });
+  // R5 ↔ R6 (east wall of R5) — high
+  addOpening(m, { wallId: r5.walls[1].id, type: 'door', position: 3.0, width: 0.9, height: 2.1 });
+  // R6 ↔ R7 (west wall of R7) — upper-middle
+  addOpening(m, { wallId: r7.walls[3].id, type: 'door', position: 1.8, width: 0.9, height: 2.1 });
+  // R6 ↔ R8 (north wall of R8) — offset from right
+  addOpening(m, { wallId: r8.walls[2].id, type: 'door', position: 1.5, width: 0.9, height: 2.1 });
+
+  // ── Front door — R8 south wall (main entrance) ──
+  addOpening(m, { wallId: r8.walls[0].id, type: 'door', position: 2.0, width: 1.0, height: 2.1 });
+
+  // ── Windows on all exterior walls ──
+
+  // R1 — top of cross (3 exterior walls)
+  addOpening(m, { wallId: r1.walls[2].id, type: 'window', position: 2.0, width: 1.8, height: 1.4, sillHeight: 0.8 });
+  addOpening(m, { wallId: r1.walls[1].id, type: 'window', position: 2.0, width: 1.2, height: 1.2, sillHeight: 0.9 });
+  addOpening(m, { wallId: r1.walls[3].id, type: 'window', position: 2.0, width: 1.2, height: 1.2, sillHeight: 0.9 });
+
+  // R2 — upper-left (2 exterior walls: west, north)
+  addOpening(m, { wallId: r2.walls[3].id, type: 'window', position: 2.0, width: 1.5, height: 1.2, sillHeight: 0.9 });
+  addOpening(m, { wallId: r2.walls[2].id, type: 'window', position: 2.0, width: 1.2, height: 1.2, sillHeight: 0.9 });
+
+  // R4 — upper-right (2 exterior walls: east, north)
+  addOpening(m, { wallId: r4.walls[1].id, type: 'window', position: 2.0, width: 1.5, height: 1.2, sillHeight: 0.9 });
+  addOpening(m, { wallId: r4.walls[2].id, type: 'window', position: 2.0, width: 1.2, height: 1.2, sillHeight: 0.9 });
+
+  // R5 — lower-left (2 exterior walls: west, south)
+  addOpening(m, { wallId: r5.walls[3].id, type: 'window', position: 2.0, width: 1.5, height: 1.2, sillHeight: 0.9 });
+  addOpening(m, { wallId: r5.walls[0].id, type: 'window', position: 2.0, width: 1.2, height: 1.2, sillHeight: 0.9 });
+
+  // R7 — lower-right (2 exterior walls: east, south)
+  addOpening(m, { wallId: r7.walls[1].id, type: 'window', position: 2.0, width: 1.5, height: 1.2, sillHeight: 0.9 });
+  addOpening(m, { wallId: r7.walls[0].id, type: 'window', position: 2.0, width: 1.2, height: 1.2, sillHeight: 0.9 });
+
+  // R8 — bottom of cross (2 exterior walls: east, west)
+  addOpening(m, { wallId: r8.walls[1].id, type: 'window', position: 2.0, width: 1.0, height: 1.2, sillHeight: 0.9 });
+  addOpening(m, { wallId: r8.walls[3].id, type: 'window', position: 2.0, width: 1.0, height: 1.2, sillHeight: 0.9 });
 
   return m;
 }
