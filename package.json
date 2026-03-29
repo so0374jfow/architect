@@ -1,0 +1,15 @@
+{
+  "name": "architect",
+  "version": "1.0.0",
+  "description": "Simple 2D/3D architectural floorplan designer with MCP integration and IFC export",
+  "type": "module",
+  "scripts": {
+    "start": "node server/dev-server.js",
+    "mcp": "node server/mcp-server.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "express": "^4.21.2",
+    "ws": "^8.18.0"
+  }
+}
