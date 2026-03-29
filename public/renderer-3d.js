@@ -134,25 +134,68 @@ export class Renderer3D {
       this.buildingGroup.add(floor);
     }
 
+    // Compute wall extensions at connected corners to close gaps
+    const extensions = this._computeWallExtensions(storey.walls);
+
     // Walls
     for (const wall of storey.walls) {
-      this._buildWall(wall, elevation);
+      const ext = extensions.get(wall.id) || { startExt: 0, endExt: 0 };
+      this._buildWall(wall, elevation, ext);
     }
   }
 
-  _buildWall(wall, elevation) {
+  _computeWallExtensions(walls) {
+    // At each shared endpoint, extend each wall along its direction
+    // by half the connecting wall's thickness to close the corner gap
+    const TOLERANCE = 0.02;
+    const extensions = new Map();
+    for (const w of walls) extensions.set(w.id, { startExt: 0, endExt: 0 });
+
+    for (let i = 0; i < walls.length; i++) {
+      for (let j = i + 1; j < walls.length; j++) {
+        const w1 = walls[i], w2 = walls[j];
+        const pairs = [
+          { p1: w1.end,   p2: w2.start, e1: 'endExt',   t: w2.thickness },
+          { p1: w1.end,   p2: w2.end,   e1: 'endExt',   t: w2.thickness },
+          { p1: w1.start, p2: w2.start, e1: 'startExt', t: w2.thickness },
+          { p1: w1.start, p2: w2.end,   e1: 'startExt', t: w2.thickness },
+        ];
+        for (const { p1, p2, e1, t } of pairs) {
+          if (Math.hypot(p1.x - p2.x, p1.y - p2.y) > TOLERANCE) continue;
+          // Extend wall by half the other wall's thickness
+          const ext1 = extensions.get(w1.id);
+          const ext2 = extensions.get(w2.id);
+          ext1[e1] = Math.max(ext1[e1], t / 2);
+          // Also extend w2 toward w1
+          const e2 = (p2 === w2.start) ? 'startExt' : 'endExt';
+          ext2[e2] = Math.max(ext2[e2], w1.thickness / 2);
+        }
+      }
+    }
+    return extensions;
+  }
+  }
+
+  _buildWall(wall, elevation, ext) {
     const dx = wall.end.x - wall.start.x;
     const dy = wall.end.y - wall.start.y;
     const len = Math.sqrt(dx * dx + dy * dy);
     if (len === 0) return;
 
     const angle = Math.atan2(dy, dx);
-    const cx = (wall.start.x + wall.end.x) / 2;
-    const cy = (wall.start.y + wall.end.y) / 2;
+    const dirX = dx / len, dirY = dy / len;
+
+    // Extend wall at connected endpoints to close corner gaps
+    const startExt = ext?.startExt || 0;
+    const endExt = ext?.endExt || 0;
+    const extLen = len + startExt + endExt;
+
+    // New center point (shifted by the extension difference)
+    const cx = (wall.start.x - dirX * startExt + wall.end.x + dirX * endExt) / 2;
+    const cy = (wall.start.y - dirY * startExt + wall.end.y + dirY * endExt) / 2;
 
     if (wall.openings.length === 0) {
-      // Simple solid wall
-      const geo = new THREE.BoxGeometry(len, wall.height, wall.thickness);
+      const geo = new THREE.BoxGeometry(extLen, wall.height, wall.thickness);
       const mesh = new THREE.Mesh(geo, this.wallMaterial);
       mesh.position.set(cx, elevation + wall.height / 2, cy);
       mesh.rotation.y = -angle;
@@ -160,18 +203,18 @@ export class Renderer3D {
       mesh.receiveShadow = true;
       this.buildingGroup.add(mesh);
     } else {
-      // Wall with openings — split into segments
-      this._buildWallWithOpenings(wall, elevation, len, angle);
+      this._buildWallWithOpenings(wall, elevation, len, angle, startExt, endExt);
     }
   }
 
-  _buildWallWithOpenings(wall, elevation, wallLen, angle) {
+  _buildWallWithOpenings(wall, elevation, wallLen, angle, startExt = 0, endExt = 0) {
     // Sort openings by position
     const openings = [...wall.openings].sort((a, b) => a.position - b.position);
 
     // Build wall segments around openings
+    // Start from -startExt (extended behind start point)
     const segments = [];
-    let cursor = 0;
+    let cursor = -startExt;
 
     for (const opening of openings) {
       const openStart = opening.position - opening.width / 2;
@@ -205,9 +248,9 @@ export class Renderer3D {
       cursor = openEnd;
     }
 
-    // Wall segment after last opening
-    if (cursor < wallLen - 0.01) {
-      segments.push({ type: 'wall', start: cursor, end: wallLen, height: wall.height, bottomY: 0 });
+    // Wall segment after last opening (extend to wallLen + endExt)
+    if (cursor < wallLen + endExt - 0.01) {
+      segments.push({ type: 'wall', start: cursor, end: wallLen + endExt, height: wall.height, bottomY: 0 });
     }
 
     // Create meshes for each segment
