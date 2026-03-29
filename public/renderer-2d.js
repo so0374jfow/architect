@@ -69,6 +69,52 @@ export class Renderer2D {
       canvas.style.cursor = 'default';
     });
 
+    // Touch support (iOS / mobile)
+    this._touches = {};
+    canvas.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      if (e.touches.length === 1) {
+        this._dragging = true;
+        this._lastMouse = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      }
+      if (e.touches.length === 2) {
+        this._pinchDist = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY,
+        );
+      }
+    }, { passive: false });
+
+    canvas.addEventListener('touchmove', (e) => {
+      e.preventDefault();
+      if (e.touches.length === 1 && this._dragging) {
+        this.offsetX += e.touches[0].clientX - this._lastMouse.x;
+        this.offsetY += e.touches[0].clientY - this._lastMouse.y;
+        this._lastMouse = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+        this._needsRender = true;
+      }
+      if (e.touches.length === 2 && this._pinchDist) {
+        const newDist = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY,
+        );
+        const zoomFactor = newDist / this._pinchDist;
+        const rect = canvas.getBoundingClientRect();
+        const mx = (e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left;
+        const my = (e.touches[0].clientY + e.touches[1].clientY) / 2 - rect.top;
+        this.offsetX = mx - (mx - this.offsetX) * zoomFactor;
+        this.offsetY = my - (my - this.offsetY) * zoomFactor;
+        this.scale *= zoomFactor;
+        this._pinchDist = newDist;
+        this._needsRender = true;
+      }
+    }, { passive: false });
+
+    canvas.addEventListener('touchend', (e) => {
+      this._dragging = false;
+      this._pinchDist = null;
+    });
+
     this._needsRender = true;
   }
 

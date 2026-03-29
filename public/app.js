@@ -13,7 +13,36 @@ import { downloadIFC } from './ifc-exporter.js';
 
 // ── Initialize model ────────────────────────────────────────────
 
-let model = fromUrlHash(window.location.hash) || createDefaultModel();
+function createDemoModel() {
+  const m = createDefaultModel();
+  m.name = 'Sample House';
+
+  // Living room
+  const living = createRoom(m, { x: 0, y: 0, width: 6, depth: 4 });
+  addOpening(m, { wallId: living.walls[0].id, type: 'door', position: 1.5, width: 0.9, height: 2.1 });
+  addOpening(m, { wallId: living.walls[2].id, type: 'window', position: 3, width: 2.0, height: 1.4, sillHeight: 0.8 });
+  addOpening(m, { wallId: living.walls[1].id, type: 'window', position: 2, width: 1.5, height: 1.2, sillHeight: 0.9 });
+
+  // Kitchen (adjacent east)
+  const kitchen = createRoom(m, { x: 6, y: 0, width: 4, depth: 4 });
+  addOpening(m, { wallId: kitchen.walls[1].id, type: 'window', position: 2, width: 1.2, height: 1.2, sillHeight: 0.9 });
+  addOpening(m, { wallId: kitchen.walls[3].id, type: 'door', position: 2, width: 0.9, height: 2.1 });
+
+  // Bedroom (north of living room)
+  const bedroom = createRoom(m, { x: 0, y: 4, width: 5, depth: 3.5 });
+  addOpening(m, { wallId: bedroom.walls[0].id, type: 'door', position: 2.5, width: 0.8, height: 2.1 });
+  addOpening(m, { wallId: bedroom.walls[2].id, type: 'window', position: 2.5, width: 1.8, height: 1.3, sillHeight: 0.9 });
+  addOpening(m, { wallId: bedroom.walls[3].id, type: 'window', position: 1.75, width: 1.0, height: 1.2, sillHeight: 0.9 });
+
+  // Bathroom (north of kitchen)
+  const bath = createRoom(m, { x: 5, y: 4, width: 3, depth: 2.5 });
+  addOpening(m, { wallId: bath.walls[3].id, type: 'door', position: 1.25, width: 0.7, height: 2.1 });
+  addOpening(m, { wallId: bath.walls[1].id, type: 'window', position: 1.25, width: 0.6, height: 0.6, sillHeight: 1.4 });
+
+  return m;
+}
+
+let model = fromUrlHash(window.location.hash) || createDemoModel();
 
 // ── Renderers ───────────────────────────────────────────────────
 

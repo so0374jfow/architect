@@ -140,20 +140,41 @@ body {
   font-size: 11px;
 }
 
-/* ── Responsive ── */
+/* ── Responsive / Mobile ── */
 @media (max-width: 800px) {
+  .header {
+    flex-direction: column;
+    height: auto;
+    padding: 8px 10px;
+    gap: 6px;
+  }
   .viewport {
     flex-direction: column;
+    height: calc(100vh - 80px - 28px);
   }
   .panel:first-child {
     border-right: none;
     border-bottom: 1px solid var(--border);
   }
   .toolbar {
-    gap: 3px;
+    gap: 4px;
+    flex-wrap: wrap;
+    justify-content: center;
   }
   .toolbar button {
-    padding: 4px 8px;
-    font-size: 11px;
+    padding: 6px 10px;
+    font-size: 12px;
+    min-height: 32px;
+    touch-action: manipulation;
   }
+}
+
+/* Prevent iOS overscroll / bounce */
+html, body {
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: auto;
+}
+
+canvas, #container-3d {
+  touch-action: none;
 }
