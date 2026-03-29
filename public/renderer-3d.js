@@ -174,7 +174,6 @@ export class Renderer3D {
     }
     return extensions;
   }
-  }
 
   _buildWall(wall, elevation, ext) {
     const dx = wall.end.x - wall.start.x;
