@@ -280,8 +280,22 @@ document.body.addEventListener('drop', (e) => {
   }
 });
 
-// Boot
-setTimeout(() => {
-  initViews();
-  connectWS();
-}, 50);
+// Boot — wait for layout to be ready
+function boot() {
+  try {
+    initViews();
+    connectWS();
+    console.log('Architect booted OK, walls:',
+      (model.storeys.find(s => s.id === model.activeStorey) || model.storeys[0])?.walls.length);
+  } catch (err) {
+    document.getElementById('status').textContent = 'Error: ' + err.message;
+    document.getElementById('status').style.color = '#f44336';
+    console.error('Boot error:', err);
+  }
+}
+
+if (document.readyState === 'complete') {
+  requestAnimationFrame(boot);
+} else {
+  window.addEventListener('load', () => requestAnimationFrame(boot));
+}
