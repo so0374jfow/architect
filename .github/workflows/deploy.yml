@@ -2,7 +2,7 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [ "claude/architectural-design-tool-xmp6l", "main" ]
+    branches: [ "claude/architectural-design-tool-xmp6l", "claude/add-claude-documentation-SHbSZ", "main" ]
   workflow_dispatch:
 
 permissions:
