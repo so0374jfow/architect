@@ -16,13 +16,20 @@
   --success: #4caf50;
 }
 
+html, body {
+  height: 100%;
+  height: 100dvh;
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: auto;
+}
+
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   background: var(--bg);
   color: var(--text);
   overflow: hidden;
-  height: 100vh;
-  width: 100vw;
+  display: flex;
+  flex-direction: column;
 }
 
 /* ── Header ── */
@@ -33,7 +40,7 @@ body {
   padding: 8px 16px;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
-  height: 48px;
+  flex-shrink: 0;
   z-index: 10;
 }
 
@@ -41,6 +48,7 @@ body {
   font-size: 16px;
   font-weight: 600;
   letter-spacing: 0.5px;
+  white-space: nowrap;
 }
 
 .header h1 span {
@@ -50,6 +58,7 @@ body {
 .toolbar {
   display: flex;
   gap: 6px;
+  flex-wrap: wrap;
 }
 
 .toolbar button {
@@ -61,6 +70,7 @@ body {
   font-size: 12px;
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s;
+  touch-action: manipulation;
 }
 
 .toolbar button:hover {
@@ -82,13 +92,15 @@ body {
 /* ── Main viewport ── */
 .viewport {
   display: flex;
-  height: calc(100vh - 48px - 28px);
+  flex: 1;
+  min-height: 0;
 }
 
 .panel {
   flex: 1;
   position: relative;
   overflow: hidden;
+  min-height: 0;
 }
 
 .panel:first-child {
@@ -132,6 +144,7 @@ body {
   background: var(--surface);
   border-top: 1px solid var(--border);
   height: 28px;
+  flex-shrink: 0;
   font-size: 11px;
   color: var(--text-muted);
 }
@@ -144,13 +157,14 @@ body {
 @media (max-width: 800px) {
   .header {
     flex-direction: column;
-    height: auto;
-    padding: 8px 10px;
-    gap: 6px;
+    padding: 6px 10px;
+    gap: 4px;
+  }
+  .header h1 {
+    font-size: 14px;
   }
   .viewport {
     flex-direction: column;
-    height: calc(100vh - 80px - 28px);
   }
   .panel:first-child {
     border-right: none;
@@ -158,21 +172,13 @@ body {
   }
   .toolbar {
     gap: 4px;
-    flex-wrap: wrap;
     justify-content: center;
   }
   .toolbar button {
-    padding: 6px 10px;
-    font-size: 12px;
-    min-height: 32px;
-    touch-action: manipulation;
+    padding: 5px 8px;
+    font-size: 11px;
+    min-height: 28px;
   }
-}
-
-/* Prevent iOS overscroll / bounce */
-html, body {
-  overscroll-behavior: none;
-  -webkit-overflow-scrolling: auto;
 }
 
 canvas, #container-3d {

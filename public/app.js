@@ -283,10 +283,20 @@ document.body.addEventListener('drop', (e) => {
 // Boot — wait for layout to be ready
 function boot() {
   try {
+    // Check if panels have actual dimensions yet
+    const panel = document.querySelector('.panel');
+    const rect = panel ? panel.getBoundingClientRect() : null;
+    if (!rect || rect.height < 10) {
+      // Layout not ready, retry
+      if (!boot._retries) boot._retries = 0;
+      boot._retries++;
+      if (boot._retries < 20) {
+        requestAnimationFrame(boot);
+        return;
+      }
+    }
     initViews();
     connectWS();
-    console.log('Architect booted OK, walls:',
-      (model.storeys.find(s => s.id === model.activeStorey) || model.storeys[0])?.walls.length);
   } catch (err) {
     document.getElementById('status').textContent = 'Error: ' + err.message;
     document.getElementById('status').style.color = '#f44336';
