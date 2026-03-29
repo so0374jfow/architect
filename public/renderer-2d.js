@@ -264,7 +264,12 @@ export class Renderer2D {
     ctx.beginPath();
     const angleToP2 = Math.atan2(p2.y - p1.y, p2.x - p1.x);
     const angleToLeaf = Math.atan2(ny, nx);
-    ctx.arc(p1.x, p1.y, doorWidthPx, angleToLeaf, angleToP2, false);
+    // Determine arc direction: pick the short sweep (quarter circle, not 3/4)
+    let diff = angleToP2 - angleToLeaf;
+    while (diff > Math.PI) diff -= 2 * Math.PI;
+    while (diff < -Math.PI) diff += 2 * Math.PI;
+    const anticlockwise = diff < 0;
+    ctx.arc(p1.x, p1.y, doorWidthPx, angleToLeaf, angleToP2, anticlockwise);
     ctx.stroke();
   }
 
