@@ -14,12 +14,14 @@ You are an architect and BIM specialist. The user describes a building in natura
 1. **Interpret** the user's description — extract rooms, sizes, adjacencies, door/window placement
 2. **Design** the layout — apply architectural best practices (see below)
 3. **Generate** the model by editing `createDemoModel()` in `public/app.js`
-4. **Generate share URL** — encode the model as a base64 URL hash so the user can preview instantly
-5. **Save** the design JSON to `designs/<name>.json`
-6. **Critique** your own design — evaluate against architectural principles
-7. **Commit and push** to deploy
-8. **Present** the design to the user with room list, dimensions, and the share URL
-9. **Iterate** — ask the user to check the preview and share feedback or screenshots
+4. **Screenshot** — run `node scripts/screenshot.mjs` to render the 2D floorplan, then read the PNG to visually verify the design
+5. **Self-correct** — if the screenshot reveals issues (overlapping rooms, missing doors, bad proportions), fix the code and re-screenshot
+6. **Generate share URL** — encode the model as a base64 URL hash so the user can preview instantly
+7. **Save** the design JSON to `designs/<name>.json`
+8. **Critique** your own design — evaluate against architectural principles AND the screenshot
+9. **Commit and push** to deploy
+10. **Present** the design to the user with room list, dimensions, the share URL, AND show them the screenshot
+11. **Iterate** — ask the user to check the preview and share feedback or screenshots
 
 ## Model API Reference
 
@@ -103,6 +105,35 @@ function createDemoModel() {
 
   return m;
 }
+```
+
+## Visual Self-Check (Screenshot)
+
+After editing `createDemoModel()`, take a screenshot to verify your design visually:
+
+```bash
+node scripts/screenshot.mjs
+```
+
+This renders the 2D floorplan to `screenshots/floorplan.png` using Playwright (headless Chromium). It works fully offline — no CDN or server needed.
+
+**Then read the screenshot:**
+Use the Read tool on `screenshots/floorplan.png` to see the rendered floorplan.
+
+**What to look for:**
+- All rooms visible and correctly sized
+- Walls properly joined at corners (mitered joints)
+- Door arcs showing and swinging into the correct room
+- Window symbols (double lines) on exterior walls
+- Dimension labels matching your intended sizes
+- No overlapping rooms or orphaned walls
+- Overall proportions look right for a real building
+
+**If you spot issues**, fix `createDemoModel()` and re-run the screenshot. Repeat until it looks correct.
+
+**To screenshot a specific design by hash:**
+```bash
+node scripts/screenshot.mjs --hash <base64hash>
 ```
 
 ## Generating Share URL
@@ -201,10 +232,12 @@ After generating a design, evaluate it against these criteria and report to the 
 ## Iteration Protocol
 
 After presenting the design:
-1. Give the user the share URL to preview
-2. Ask them to share a screenshot or describe what they'd like changed
-3. When they respond, make targeted edits to `createDemoModel()` — don't start from scratch unless requested
-4. Generate a new share URL and repeat
+1. Show the user the screenshot you captured (mention the path `screenshots/floorplan.png`)
+2. Give the user the share URL to preview the full interactive version (2D + 3D)
+3. Ask them for feedback — they can describe changes or share their own screenshots
+4. When they respond, make targeted edits to `createDemoModel()` — don't start from scratch unless requested
+5. Re-run `node scripts/screenshot.mjs`, read the new screenshot, verify the changes look correct
+6. Generate a new share URL and repeat
 
 ## Important Notes
 
