@@ -39,9 +39,14 @@ architect/
 npm install          # Install dependencies
 npm start            # Start dev server at http://localhost:3000
 npm run mcp          # Start MCP server (stdio transport)
+npm run screenshot   # Render 2D floorplan to screenshots/floorplan.png
 ```
 
 There is no build, lint, or test command. No automated tests exist.
+
+## Skills
+
+- **`/design <description>`** — Natural language architectural design. Generates building models, screenshots for visual verification, saves design JSONs, and deploys to GitHub Pages. See `.claude/skills/design/SKILL.md`.
 
 ## Development Workflow
 
@@ -49,6 +54,18 @@ There is no build, lint, or test command. No automated tests exist.
 2. Open http://localhost:3000 — edit files in `public/` or `server/`, reload browser
 3. For MCP testing: `npm run mcp` in a separate terminal
 4. Models persist as JSON files in `designs/` directory (filesystem, no database)
+
+### Design Preview URLs
+
+The app loads designs via `?load=<name>` query parameter, fetching `public/designs/<name>.json`:
+- Default: `https://so0374jfow.github.io/architect/`
+- Named: `https://so0374jfow.github.io/architect/?load=<name>`
+
+Also supports URL hash sharing (`#base64json`) for embedding full models in URLs.
+
+### Screenshot Pipeline
+
+`node scripts/screenshot.mjs` renders the current `createDemoModel()` design to `screenshots/floorplan.png` using Playwright (headless Chromium). Works offline — no CDN needed. Used by the `/design` skill for visual self-verification.
 
 ## Architecture
 
@@ -101,4 +118,4 @@ Generates valid IFC4-SPF files with full project/site/building/storey hierarchy,
 
 ## CI/CD
 
-GitHub Actions deploys `public/` to GitHub Pages on push to `main` or the active development branch. No build step needed.
+GitHub Actions deploys `public/` to GitHub Pages on push to `main`. No build step needed. Feature branches must be merged to `main` for deployment.

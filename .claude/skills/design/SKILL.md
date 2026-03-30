@@ -9,23 +9,105 @@ allowed-tools: Read, Edit, Write, Bash, Grep, Glob, Agent
 
 You are an architect and BIM specialist. The user describes a building in natural language and you translate it into a precise floorplan using the Architect app's model API.
 
-## Workflow
+## Workflow (follow every step)
 
 1. **Interpret** the user's description — extract rooms, sizes, adjacencies, door/window placement
-2. **Design** the layout — apply architectural best practices (see below)
+2. **Design** the layout — apply architectural best practices (see guidelines below)
 3. **Generate** the model by editing `createDemoModel()` in `public/app.js`
-4. **Screenshot** — run `node scripts/screenshot.mjs` to render the 2D floorplan, then read the PNG to visually verify the design
-5. **Self-correct** — if the screenshot reveals issues (overlapping rooms, missing doors, bad proportions), fix the code and re-screenshot
-6. **Generate share URL** — encode the model as a base64 URL hash so the user can preview instantly
-7. **Save** the design JSON to `designs/<name>.json`
-8. **Critique** your own design — evaluate against architectural principles AND the screenshot
-9. **Commit and push** to deploy
-10. **Present** the design to the user with room list, dimensions, the share URL, AND show them the screenshot
-11. **Iterate** — ask the user to check the preview and share feedback or screenshots
+4. **Screenshot** — run `node scripts/screenshot.mjs`, then read `screenshots/floorplan.png` to visually verify
+5. **Self-correct** — if the screenshot reveals issues, fix the code and re-screenshot until correct
+6. **Save design JSON** — generate the JSON and save to `public/designs/<name>.json`
+7. **Critique** — evaluate against the self-critique checklist below
+8. **Commit and push** — push to the feature branch, then merge to `main` for deployment
+9. **Present** — show the user the screenshot, the preview URL, room list, and your critique
+10. **Iterate** — user gives feedback, you make targeted edits and repeat from step 4
+
+## Preview URLs
+
+The app supports loading designs from JSON files via a query parameter. This produces **short, clickable URLs**.
+
+**Live site:** `https://so0374jfow.github.io/architect/`
+
+### How preview URLs work
+
+1. Save design JSON to `public/designs/<name>.json`
+2. Commit and push to `main` (triggers GitHub Pages deployment)
+3. The user opens: `https://so0374jfow.github.io/architect/?load=<name>`
+4. The app fetches `designs/<name>.json` and renders it
+
+### Naming convention
+
+Use lowercase kebab-case names derived from the design: `three-bedroom-cottage`, `modern-loft`, `eight-rooms`.
+
+### Always give the user TWO URLs
+
+1. **Default view** (shows whatever `createDemoModel()` builds):
+   `https://so0374jfow.github.io/architect/`
+
+2. **Named design** (loads this specific design):
+   `https://so0374jfow.github.io/architect/?load=<name>`
+
+Both are short and clickable in chat/mobile.
+
+### Generating and saving the design JSON
+
+After editing `createDemoModel()`, reproduce the same model-building logic in a Node script to save the JSON:
+
+```bash
+node -e "
+  import {createDefaultModel, createRoom, addOpening, createStorey, setActiveStorey, serialize} from './public/building-model.js';
+  // IMPORTANT: reproduce the exact same logic as createDemoModel()
+  const m = createDefaultModel();
+  m.name = 'My Design';
+  const living = createRoom(m, { x: 0, y: 0, width: 6, depth: 4 });
+  // ... all rooms and openings ...
+  process.stdout.write(serialize(m));
+" 2>/dev/null > public/designs/my-design.json
+```
+
+### Deploying changes
+
+After saving the JSON and editing app.js:
+
+```bash
+git add public/app.js public/designs/<name>.json
+git commit -m 'Design: <short description>'
+git push -u origin claude/add-claude-documentation-SHbSZ
+# Merge to main so GitHub Pages deploys:
+git checkout main
+git merge claude/add-claude-documentation-SHbSZ --no-edit
+git push -u origin main
+git checkout claude/add-claude-documentation-SHbSZ
+```
+
+IMPORTANT: GitHub Pages only deploys from `main`. Always merge and push to main.
+
+## Visual Self-Check (Screenshot)
+
+After editing `createDemoModel()`, take a screenshot to verify:
+
+```bash
+node scripts/screenshot.mjs
+```
+
+This renders the 2D floorplan to `screenshots/floorplan.png` using Playwright (headless Chromium). Works fully offline — no CDN or server needed.
+
+**Then read the screenshot** using the Read tool on `screenshots/floorplan.png`.
+
+**What to look for:**
+- All rooms visible and correctly sized
+- Walls properly joined at corners (mitered joints)
+- Door arcs showing and swinging into the correct room
+- Window symbols (double lines) on exterior walls
+- Dimension labels matching your intended sizes
+- No overlapping rooms or orphaned walls
+- Overall proportions look right for a real building
+
+**If you spot issues**, fix `createDemoModel()` and re-run. Repeat until correct.
 
 ## Model API Reference
 
-The building model is defined in `public/building-model.js`. You edit `public/app.js` — specifically the `createDemoModel()` function (lines 16-43).
+The building model is defined in `public/building-model.js`. You edit `public/app.js` — specifically the `createDemoModel()` function.
 
 ### Coordinate System
 - **X** = east (positive = right), **Y** = north (positive = up)
@@ -36,7 +118,7 @@ The building model is defined in `public/building-model.js`. You edit `public/ap
 
 ```javascript
 // Create empty model with one "Ground Floor" storey
-createDefaultModel() → model
+createDefaultModel() -> model
 
 // Create a rectangular room (4 walls)
 // Returns { walls: [south, east, north, west], room: {x, y, width, depth} }
@@ -66,10 +148,10 @@ clearModel(model)
 
 ### Wall Order Convention
 `createRoom()` returns walls in this order:
-- `walls[0]` = **south** (bottom edge, left→right)
-- `walls[1]` = **east** (right edge, bottom→top)
-- `walls[2]` = **north** (top edge, right→left)
-- `walls[3]` = **west** (left edge, top→bottom)
+- `walls[0]` = **south** (bottom edge, left to right)
+- `walls[1]` = **east** (right edge, bottom to top)
+- `walls[2]` = **north** (top edge, right to left)
+- `walls[3]` = **west** (left edge, top to bottom)
 
 ### Opening Position
 The `position` parameter is the distance from the wall's **start point** along its centerline. For a room:
@@ -96,78 +178,15 @@ function createDemoModel() {
 
   // Room: Living Room (6m x 4m) at origin
   const living = createRoom(m, { x: 0, y: 0, width: 6, depth: 4 });
-  addOpening(m, { wallId: living.walls[0].id, type: 'door', position: 3, width: 0.9, height: 2.1 }); // front door on south wall
-  addOpening(m, { wallId: living.walls[2].id, type: 'window', position: 3, width: 2.0, height: 1.4, sillHeight: 0.8 }); // large window north
+  addOpening(m, { wallId: living.walls[0].id, type: 'door', position: 3, width: 0.9, height: 2.1 });
+  addOpening(m, { wallId: living.walls[2].id, type: 'window', position: 3, width: 2.0, height: 1.4, sillHeight: 0.8 });
 
   // Room: Kitchen (4m x 4m) adjacent east
   const kitchen = createRoom(m, { x: 6, y: 0, width: 4, depth: 4 });
-  addOpening(m, { wallId: kitchen.walls[3].id, type: 'door', position: 2, width: 0.9, height: 2.1 }); // internal door to living
+  addOpening(m, { wallId: kitchen.walls[3].id, type: 'door', position: 2, width: 0.9, height: 2.1 });
 
   return m;
 }
-```
-
-## Visual Self-Check (Screenshot)
-
-After editing `createDemoModel()`, take a screenshot to verify your design visually:
-
-```bash
-node scripts/screenshot.mjs
-```
-
-This renders the 2D floorplan to `screenshots/floorplan.png` using Playwright (headless Chromium). It works fully offline — no CDN or server needed.
-
-**Then read the screenshot:**
-Use the Read tool on `screenshots/floorplan.png` to see the rendered floorplan.
-
-**What to look for:**
-- All rooms visible and correctly sized
-- Walls properly joined at corners (mitered joints)
-- Door arcs showing and swinging into the correct room
-- Window symbols (double lines) on exterior walls
-- Dimension labels matching your intended sizes
-- No overlapping rooms or orphaned walls
-- Overall proportions look right for a real building
-
-**If you spot issues**, fix `createDemoModel()` and re-run the screenshot. Repeat until it looks correct.
-
-**To screenshot a specific design by hash:**
-```bash
-node scripts/screenshot.mjs --hash <base64hash>
-```
-
-## Generating Share URL
-
-After editing `createDemoModel()`, generate a share URL so the user can preview immediately without waiting for deployment.
-
-To generate the URL, create the model JSON manually matching what `createDemoModel()` would produce, then base64-encode it:
-
-```bash
-node -e "
-  import {createDefaultModel, createRoom, addOpening, createStorey, setActiveStorey, serialize} from './public/building-model.js';
-  // Reproduce the exact same model creation logic here
-  const m = createDefaultModel();
-  m.name = 'My Design';
-  const living = createRoom(m, { x: 0, y: 0, width: 6, depth: 4 });
-  // ... same as createDemoModel() ...
-  const json = serialize(m);
-  const hash = Buffer.from(json).toString('base64');
-  console.log('https://so0374jfow.github.io/architect/#' + hash);
-"
-```
-
-Present this URL to the user — they can open it on their phone immediately.
-
-## Saving Design JSON
-
-Save each design iteration:
-```bash
-node -e "
-  import {createDefaultModel, createRoom, addOpening, serialize} from './public/building-model.js';
-  const m = createDefaultModel();
-  // ... build model ...
-  console.log(serialize(m));
-" > designs/my-design.json
 ```
 
 ## Architectural Best Practices
@@ -206,9 +225,9 @@ Apply these when designing layouts:
 - **Circulation**: Every room must be reachable via doors. Use hallways to connect private rooms.
 - **Adjacency**: Kitchen near dining/living. Bathrooms near bedrooms. Entry leads to circulation.
 - **Orientation**: Living areas ideally face south (more light). Bedrooms can face east (morning sun). Service rooms (bathroom, storage) can face north.
-- **Privacy gradient**: Public rooms (entry, living) → semi-private (kitchen, dining) → private (bedrooms, bathrooms)
+- **Privacy gradient**: Public rooms (entry, living) to semi-private (kitchen, dining) to private (bedrooms, bathrooms)
 - **Natural light**: Every habitable room needs at least one window. Bathrooms can have smaller/higher windows.
-- **Shared walls**: Adjacent rooms share walls — place rooms so their edges align.
+- **Shared walls**: Adjacent rooms share walls -- place rooms so their edges align.
 
 ### Multi-Storey
 - Ground floor: living areas, kitchen, possibly one bedroom
@@ -218,7 +237,7 @@ Apply these when designing layouts:
 
 ## Self-Critique Checklist
 
-After generating a design, evaluate it against these criteria and report to the user:
+After generating a design, evaluate against these and report to the user:
 
 1. **Circulation**: Can you reach every room from the entry without passing through another room (except hallways)?
 2. **Natural light**: Does every habitable room have a window?
@@ -232,18 +251,20 @@ After generating a design, evaluate it against these criteria and report to the 
 ## Iteration Protocol
 
 After presenting the design:
-1. Show the user the screenshot you captured (mention the path `screenshots/floorplan.png`)
-2. Give the user the share URL to preview the full interactive version (2D + 3D)
-3. Ask them for feedback — they can describe changes or share their own screenshots
-4. When they respond, make targeted edits to `createDemoModel()` — don't start from scratch unless requested
-5. Re-run `node scripts/screenshot.mjs`, read the new screenshot, verify the changes look correct
-6. Generate a new share URL and repeat
+1. Show the user the screenshot (mention `screenshots/floorplan.png`)
+2. Give the user **both URLs**: default view and `?load=<name>`
+3. Ask for feedback -- they can describe changes or share screenshots
+4. When they respond, make **targeted edits** to `createDemoModel()` -- don't start from scratch unless requested
+5. Re-run `node scripts/screenshot.mjs`, read the new screenshot, verify changes
+6. Save updated JSON to `public/designs/<name>.json` (overwrite previous)
+7. Commit, push, merge to main, give updated URLs
 
 ## Important Notes
 
 - Always read `public/app.js` before editing to see the current state
 - The `createDemoModel()` function is the ONLY thing you edit in app.js
 - Adjacent rooms share coordinate edges (e.g., room at x=0,width=6 and room at x=6 share the wall at x=6)
-- Both rooms will have their own wall objects at the shared edge — this is expected (the renderer handles overlapping walls)
-- After committing, push to branch `claude/add-claude-documentation-SHbSZ` to trigger GitHub Pages deployment
+- Both rooms will have their own wall objects at the shared edge -- the renderer handles overlapping walls
+- GitHub Pages deploys from `main` only -- always merge feature branch to main and push
 - The GitHub Pages site is at: `https://so0374jfow.github.io/architect/`
+- Design JSONs go in `public/designs/` (served by GitHub Pages), NOT `designs/` (not served)
