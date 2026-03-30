@@ -92,7 +92,18 @@ function createDemoModel() {
   return m;
 }
 
-let model = fromUrlHash(window.location.hash) || createDemoModel();
+// Support ?load=name to fetch designs/name.json
+async function loadFromQuery() {
+  const name = new URLSearchParams(window.location.search).get('load');
+  if (!name) return null;
+  try {
+    const res = await fetch(`designs/${encodeURIComponent(name)}.json`);
+    if (!res.ok) return null;
+    return deserialize(await res.text());
+  } catch { return null; }
+}
+
+let model = fromUrlHash(window.location.hash) || await loadFromQuery() || createDemoModel();
 
 // ── Renderers ───────────────────────────────────────────────────
 
