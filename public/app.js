@@ -15,31 +15,84 @@ import { importIfcFile } from './ifc-reader.js';
 
 // ── Initialize model ────────────────────────────────────────────
 
+function buildUnit(m, ox, mirror) {
+  // Single apartment unit: ~6.0m wide x 9.5m deep
+  // ox = x offset, mirror = true to flip for right-hand unit
+  // Rooms: walls[0]=south, walls[1]=east, walls[2]=north, walls[3]=west
+
+  const uw = 6.0; // unit width
+  function mx(localX, w) {
+    // mirror x coordinates for right unit
+    if (!mirror) return ox + localX;
+    return ox + uw - localX - (w || 0);
+  }
+  // wall indices flip for mirrored unit: east(1) <-> west(3)
+  const E = mirror ? 3 : 1;
+  const W = mirror ? 1 : 3;
+
+  // ── Lower half: Living room + Kitchen + Entry ──
+
+  // Living Room: 4.0 x 5.0 — south-west of unit
+  const living = createRoom(m, { x: mx(0, 4.0), y: 0, width: 4.0, depth: 5.0 });
+  // South wall: large window
+  addOpening(m, { wallId: living.walls[0].id, type: 'window', position: 2.0, width: 2.4, height: 2.2, sillHeight: 0.4 });
+  // West wall (exterior): window
+  addOpening(m, { wallId: living.walls[W].id, type: 'window', position: 2.5, width: 1.6, height: 1.4, sillHeight: 0.8 });
+  // East wall: door to entry hall
+  addOpening(m, { wallId: living.walls[E].id, type: 'door', position: 3.5, width: 0.9, height: 2.1 });
+
+  // Kitchen: 2.0 x 2.8 — south-east of unit
+  const kitchen = createRoom(m, { x: mx(4.0, 2.0), y: 0, width: 2.0, depth: 2.8 });
+  // South wall: window
+  addOpening(m, { wallId: kitchen.walls[0].id, type: 'window', position: 1.0, width: 1.2, height: 1.2, sillHeight: 0.9 });
+  // West wall: door to living
+  addOpening(m, { wallId: kitchen.walls[W].id, type: 'door', position: 1.4, width: 0.9, height: 2.1 });
+
+  // Entry Hall: 2.0 x 2.2 — between kitchen and upper rooms
+  const entry = createRoom(m, { x: mx(4.0, 2.0), y: 2.8, width: 2.0, depth: 2.2 });
+  // East wall: entry door (from stairwell)
+  addOpening(m, { wallId: entry.walls[E].id, type: 'door', position: 1.1, width: 0.9, height: 2.1 });
+
+  // ── Upper half: Bedrooms + Bathroom ──
+
+  // Bedroom 1 (larger): 3.2 x 4.5 — north-west of unit
+  const bed1 = createRoom(m, { x: mx(0, 3.2), y: 5.0, width: 3.2, depth: 4.5 });
+  // West wall (exterior): window
+  addOpening(m, { wallId: bed1.walls[W].id, type: 'window', position: 2.25, width: 1.4, height: 1.4, sillHeight: 0.8 });
+  // North wall: window
+  addOpening(m, { wallId: bed1.walls[2].id, type: 'window', position: 1.6, width: 1.6, height: 1.3, sillHeight: 0.9 });
+  // East wall: door from corridor
+  addOpening(m, { wallId: bed1.walls[E].id, type: 'door', position: 0.8, width: 0.8, height: 2.1 });
+
+  // Bedroom 2 (smaller): 2.8 x 2.6 — north-east of unit
+  const bed2 = createRoom(m, { x: mx(3.2, 2.8), y: 6.9, width: 2.8, depth: 2.6 });
+  // North wall: window
+  addOpening(m, { wallId: bed2.walls[2].id, type: 'window', position: 1.4, width: 1.4, height: 1.3, sillHeight: 0.9 });
+  // South wall: door from corridor
+  addOpening(m, { wallId: bed2.walls[0].id, type: 'door', position: 0.6, width: 0.8, height: 2.1 });
+
+  // Bathroom: 2.8 x 1.9 — between entry and bedroom 2
+  const bath = createRoom(m, { x: mx(3.2, 2.8), y: 5.0, width: 2.8, depth: 1.9 });
+  // East wall: small window
+  addOpening(m, { wallId: bath.walls[E].id, type: 'window', position: 0.95, width: 0.6, height: 0.6, sillHeight: 1.5 });
+  // South wall: door from hallway area
+  addOpening(m, { wallId: bath.walls[0].id, type: 'door', position: 0.6, width: 0.7, height: 2.1 });
+}
+
 function createDemoModel() {
   const m = createDefaultModel();
-  m.name = 'Sample House';
+  m.name = 'Engadin Duplex';
 
-  // Living room
-  const living = createRoom(m, { x: 0, y: 0, width: 6, depth: 4 });
-  addOpening(m, { wallId: living.walls[0].id, type: 'door', position: 1.5, width: 0.9, height: 2.1 });
-  addOpening(m, { wallId: living.walls[2].id, type: 'window', position: 3, width: 2.0, height: 1.4, sillHeight: 0.8 });
-  addOpening(m, { wallId: living.walls[1].id, type: 'window', position: 2, width: 1.5, height: 1.2, sillHeight: 0.9 });
+  // Left unit
+  buildUnit(m, 0, false);
 
-  // Kitchen (adjacent east)
-  const kitchen = createRoom(m, { x: 6, y: 0, width: 4, depth: 4 });
-  addOpening(m, { wallId: kitchen.walls[1].id, type: 'window', position: 2, width: 1.2, height: 1.2, sillHeight: 0.9 });
-  addOpening(m, { wallId: kitchen.walls[3].id, type: 'door', position: 2, width: 0.9, height: 2.1 });
+  // Right unit (mirrored, offset by 7.4 — leaves 1.4m stairwell gap)
+  buildUnit(m, 7.4, true);
 
-  // Bedroom (north of living room)
-  const bedroom = createRoom(m, { x: 0, y: 4, width: 5, depth: 3.5 });
-  addOpening(m, { wallId: bedroom.walls[0].id, type: 'door', position: 2.5, width: 0.8, height: 2.1 });
-  addOpening(m, { wallId: bedroom.walls[2].id, type: 'window', position: 2.5, width: 1.8, height: 1.3, sillHeight: 0.9 });
-  addOpening(m, { wallId: bedroom.walls[3].id, type: 'window', position: 1.75, width: 1.0, height: 1.2, sillHeight: 0.9 });
-
-  // Bathroom (north of kitchen)
-  const bath = createRoom(m, { x: 5, y: 4, width: 3, depth: 2.5 });
-  addOpening(m, { wallId: bath.walls[3].id, type: 'door', position: 1.25, width: 0.7, height: 2.1 });
-  addOpening(m, { wallId: bath.walls[1].id, type: 'window', position: 1.25, width: 0.6, height: 0.6, sillHeight: 1.4 });
+  // Central stairwell walls (shared structure between units)
+  createWall(m, { start: { x: 6.0, y: 0 }, end: { x: 6.0, y: 9.5 }, thickness: 0.25 });
+  createWall(m, { start: { x: 7.4, y: 0 }, end: { x: 7.4, y: 9.5 }, thickness: 0.25 });
+  createWall(m, { start: { x: 6.0, y: 0 }, end: { x: 7.4, y: 0 }, thickness: 0.2 });
 
   return m;
 }
@@ -185,21 +238,14 @@ document.getElementById('btn-clear').addEventListener('click', () => {
 document.getElementById('btn-demo').addEventListener('click', () => {
   clearModel(model);
 
-  // Living room
-  const living = createRoom(model, { x: 0, y: 0, width: 6, depth: 4 });
-  addOpening(model, { wallId: living.walls[0].id, type: 'door', position: 3, width: 0.9, height: 2.1 });
-  addOpening(model, { wallId: living.walls[1].id, type: 'window', position: 2, width: 1.5, height: 1.2, sillHeight: 0.9 });
-  addOpening(model, { wallId: living.walls[2].id, type: 'window', position: 3, width: 2.0, height: 1.4, sillHeight: 0.8 });
+  // Rebuild the Engadin Duplex plan
+  buildUnit(model, 0, false);
+  buildUnit(model, 7.4, true);
+  createWall(model, { start: { x: 6.0, y: 0 }, end: { x: 6.0, y: 9.5 }, thickness: 0.25 });
+  createWall(model, { start: { x: 7.4, y: 0 }, end: { x: 7.4, y: 9.5 }, thickness: 0.25 });
+  createWall(model, { start: { x: 6.0, y: 0 }, end: { x: 7.4, y: 0 }, thickness: 0.2 });
 
-  // Kitchen (adjacent)
-  const kitchen = createRoom(model, { x: 6, y: 0, width: 4, depth: 4 });
-  addOpening(model, { wallId: kitchen.walls[1].id, type: 'window', position: 2, width: 1.2, height: 1.2, sillHeight: 0.9 });
-
-  // Internal door between rooms (delete shared wall segment and add door)
-  // The east wall of living room and west wall of kitchen overlap — for simplicity add door to kitchen west wall
-  addOpening(model, { wallId: kitchen.walls[3].id, type: 'door', position: 2, width: 0.9, height: 2.1 });
-
-  model.name = 'Sample House';
+  model.name = 'Engadin Duplex';
   initViews();
 });
 
