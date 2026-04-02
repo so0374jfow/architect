@@ -4,12 +4,21 @@
   "description": "Simple 2D/3D architectural floorplan designer with MCP integration and IFC export",
   "type": "module",
   "scripts": {
+    "dev": "vite --config vite.config.js",
+    "build": "vite build --config vite.config.js",
     "start": "node server/dev-server.js",
     "mcp": "node server/mcp-server.js"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.1",
     "express": "^4.21.2",
+    "three": "^0.160.0",
+    "vite": "^8.0.3",
+    "web-ifc": "^0.0.77",
+    "web-ifc-three": "^0.0.126",
     "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "vite-plugin-static-copy": "^4.0.0"
   }
 }

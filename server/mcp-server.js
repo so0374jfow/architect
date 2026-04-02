@@ -340,19 +340,30 @@ server.tool(
   },
   async ({ filename }) => {
     const model = await getModel();
-    // We need to generate IFC server-side. Import the exporter dynamically.
-    const { exportIFC } = await import('../public/ifc-exporter.js');
-    const ifc = exportIFC(model);
     const fname = (filename || model.name || 'building').replace(/[^a-zA-Z0-9_-]/g, '_');
 
-    const { writeFileSync } = await import('fs');
+    const { writeFileSync, mkdirSync } = await import('fs');
     const { join, dirname } = await import('path');
     const { fileURLToPath } = await import('url');
     const __dirname = dirname(fileURLToPath(import.meta.url));
-    const outPath = join(__dirname, '..', 'designs', `${fname}.ifc`);
-    writeFileSync(outPath, ifc);
+    const designsDir = join(__dirname, '..', 'designs');
+    mkdirSync(designsDir, { recursive: true });
+    const outPath = join(designsDir, `${fname}.ifc`);
 
-    return { content: [{ type: 'text', text: `IFC exported to: designs/${fname}.ifc` }] };
+    // Try web-ifc first (proper IFC creation), fall back to string templates
+    try {
+      const { initIfcEngine, exportIfcBuffer } = await import('../public/ifc-builder.js');
+      await initIfcEngine();
+      const buffer = exportIfcBuffer(model);
+      writeFileSync(outPath, buffer);
+      return { content: [{ type: 'text', text: `IFC exported (web-ifc) to: designs/${fname}.ifc` }] };
+    } catch (err) {
+      // Fallback to string-template exporter
+      const { exportIFC } = await import('../public/ifc-exporter.js');
+      const ifc = exportIFC(model);
+      writeFileSync(outPath, ifc);
+      return { content: [{ type: 'text', text: `IFC exported (fallback) to: designs/${fname}.ifc` }] };
+    }
   }
 );
 

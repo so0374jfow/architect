@@ -10,6 +10,8 @@ import {
 import { Renderer2D } from './renderer-2d.js';
 import { Renderer3D } from './renderer-3d.js';
 import { downloadIFC } from './ifc-exporter.js';
+import { downloadIfcFile } from './ifc-builder.js';
+import { importIfcFile } from './ifc-reader.js';
 
 // ── Initialize model ────────────────────────────────────────────
 
@@ -87,8 +89,15 @@ function updateStatus() {
 
 // ── UI: Buttons ─────────────────────────────────────────────────
 
-document.getElementById('btn-export-ifc').addEventListener('click', () => {
-  downloadIFC(model);
+document.getElementById('btn-export-ifc').addEventListener('click', async () => {
+  try {
+    statusEl.textContent = 'Exporting IFC (web-ifc)...';
+    await downloadIfcFile(model);
+    updateStatus();
+  } catch (err) {
+    console.warn('web-ifc export failed, falling back to string template:', err);
+    downloadIFC(model);
+  }
 });
 
 document.getElementById('btn-save-json').addEventListener('click', () => {
@@ -119,6 +128,34 @@ document.getElementById('btn-load-json').addEventListener('click', () => {
       }
     };
     reader.readAsText(file);
+  };
+  input.click();
+});
+
+document.getElementById('btn-load-ifc').addEventListener('click', () => {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.ifc';
+  input.onchange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    try {
+      statusEl.textContent = 'Importing IFC...';
+      const buffer = await file.arrayBuffer();
+
+      // Load IFC geometry into the 3D viewer via web-ifc-three
+      r3d.loadIfcFile(buffer).catch(err => {
+        console.warn('IFC 3D preview failed:', err);
+      });
+
+      // Parse IFC into building model
+      model = await importIfcFile(buffer);
+      initViews();
+      statusEl.textContent = `Imported: ${model.name}`;
+    } catch (err) {
+      alert('Failed to import IFC: ' + err.message);
+      updateStatus();
+    }
   };
   input.click();
 });
@@ -261,12 +298,14 @@ window.addEventListener('hashchange', () => {
   }
 });
 
-// Drag and drop JSON files
+// Drag and drop JSON and IFC files
 document.body.addEventListener('dragover', (e) => { e.preventDefault(); });
-document.body.addEventListener('drop', (e) => {
+document.body.addEventListener('drop', async (e) => {
   e.preventDefault();
   const file = e.dataTransfer.files[0];
-  if (file && file.name.endsWith('.json')) {
+  if (!file) return;
+
+  if (file.name.endsWith('.json')) {
     const reader = new FileReader();
     reader.onload = (ev) => {
       try {
@@ -277,6 +316,18 @@ document.body.addEventListener('drop', (e) => {
       }
     };
     reader.readAsText(file);
+  } else if (file.name.endsWith('.ifc')) {
+    try {
+      statusEl.textContent = 'Importing IFC...';
+      const buffer = await file.arrayBuffer();
+      r3d.loadIfcFile(buffer).catch(err => console.warn('IFC 3D preview failed:', err));
+      model = await importIfcFile(buffer);
+      initViews();
+      statusEl.textContent = `Imported: ${model.name}`;
+    } catch (err) {
+      alert('Failed to import IFC: ' + err.message);
+      updateStatus();
+    }
   }
 });
 
