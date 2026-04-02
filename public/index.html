@@ -6,33 +6,7 @@
   <title>Architect - Floorplan Designer</title>
   <link rel="stylesheet" href="style.css">
 
-  <!-- Three.js from CDN (no build step) -->
-  <script type="importmap">
-  {
-    "imports": {
-      "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
-      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
-    }
-  }
-  </script>
-
-  <!-- Load Three.js as global for renderer-3d.js -->
-  <script type="module">
-    try {
-      const THREE = await import('three');
-      const { OrbitControls } = await import('three/addons/controls/OrbitControls.js');
-
-      // Expose as globals (use window, not the frozen module object)
-      window.THREE = { ...THREE, OrbitControls };
-
-      // Then load the app
-      await import('./app.js');
-    } catch (err) {
-      document.getElementById('status').textContent = 'Error: ' + err.message;
-      document.getElementById('status').style.color = '#f44336';
-      console.error('Init error:', err);
-    }
-  </script>
+  <script type="module" src="./app.js"></script>
 </head>
 <body>
 
@@ -41,10 +15,12 @@
     <div class="toolbar">
       <button id="btn-demo">Demo</button>
       <button id="btn-clear">Clear</button>
-      <button id="btn-load-json">Load</button>
+      <button id="btn-load-json">Load JSON</button>
+      <button id="btn-load-ifc">Import IFC</button>
       <button id="btn-save-json">Save JSON</button>
       <button id="btn-share">Share URL</button>
       <button id="btn-export-ifc" class="primary">Export IFC</button>
+      <button id="btn-scatter" class="primary">Scatter Facade</button>
     </div>
   </div>
 

@@ -1,5 +1,8 @@
 // renderer-3d.js — Three.js 3D preview renderer
-// Three.js loaded from CDN in index.html, available as global THREE
+
+import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { IFCLoader } from 'web-ifc-three/IFCLoader';
 
 export class Renderer3D {
   constructor(container) {
@@ -18,7 +21,7 @@ export class Renderer3D {
     container.appendChild(this.renderer.domElement);
 
     // Controls
-    this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
+    this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.enableDamping = true;
     this.controls.dampingFactor = 0.05;
     this.controls.target.set(0, 1.5, 0);
@@ -48,9 +51,17 @@ export class Renderer3D {
     grid.position.y = 0.01;
     this.scene.add(grid);
 
-    // Building group
+    // Building group (for app-model-based rendering)
     this.buildingGroup = new THREE.Group();
     this.scene.add(this.buildingGroup);
+
+    // IFC group (for web-ifc-three imported IFC rendering)
+    this.ifcGroup = new THREE.Group();
+    this.scene.add(this.ifcGroup);
+
+    // IFC Loader setup
+    this.ifcLoader = new IFCLoader();
+    this.ifcLoader.ifcManager.setWasmPath('./');
 
     // Materials
     this.wallMaterial = new THREE.MeshStandardMaterial({
@@ -276,6 +287,45 @@ export class Renderer3D {
       mesh.castShadow = seg.type === 'wall';
       mesh.receiveShadow = true;
       this.buildingGroup.add(mesh);
+    }
+  }
+
+  /**
+   * Load and display an IFC file using web-ifc-three.
+   * This renders the IFC geometry directly from the file (more accurate than box approximations).
+   * @param {ArrayBuffer|Uint8Array} data - The IFC file data
+   */
+  async loadIfcFile(data) {
+    // Clear any previous IFC model
+    this.clearIfcModel();
+
+    const buffer = data instanceof ArrayBuffer ? data : data.buffer;
+    const blob = new Blob([buffer], { type: 'application/x-step' });
+    const url = URL.createObjectURL(blob);
+
+    try {
+      const ifcModel = await this.ifcLoader.loadAsync(url);
+      ifcModel.castShadow = true;
+      ifcModel.receiveShadow = true;
+      this.ifcGroup.add(ifcModel);
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  }
+
+  /** Clear any loaded IFC model from the scene */
+  clearIfcModel() {
+    while (this.ifcGroup.children.length > 0) {
+      const child = this.ifcGroup.children[0];
+      this.ifcGroup.remove(child);
+      if (child.geometry) child.geometry.dispose();
+      if (child.material) {
+        if (Array.isArray(child.material)) {
+          child.material.forEach(m => m.dispose());
+        } else {
+          child.material.dispose();
+        }
+      }
     }
   }
 
