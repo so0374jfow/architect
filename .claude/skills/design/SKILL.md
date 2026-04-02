@@ -31,7 +31,7 @@ The app supports loading designs from JSON files via a query parameter. This pro
 ### How preview URLs work
 
 1. Save design JSON to `public/designs/<name>.json`
-2. Commit and push to `main` (triggers GitHub Pages deployment)
+2. Push to `gh-pages` branch via `mcp__github__push_files` (files go to branch root, NOT `public/`)
 3. The user opens: `https://so0374jfow.github.io/architect/?load=<name>`
 4. The app fetches `designs/<name>.json` and renders it
 
@@ -67,20 +67,45 @@ node -e "
 
 ### Deploying changes
 
-After saving the JSON and editing app.js:
+GitHub Pages serves from the `gh-pages` branch root (`/`). The GitHub Actions workflow is NOT used. You must push files directly to `gh-pages` using the GitHub API.
 
+**Step 1: Commit to your feature branch (for version control)**
 ```bash
 git add public/app.js public/designs/<name>.json
 git commit -m 'Design: <short description>'
-git push -u origin claude/add-claude-documentation-SHbSZ
-# Merge to main so GitHub Pages deploys:
-git checkout main
-git merge claude/add-claude-documentation-SHbSZ --no-edit
-git push -u origin main
-git checkout claude/add-claude-documentation-SHbSZ
+git push -u origin <your-branch>
 ```
 
-IMPORTANT: GitHub Pages only deploys from `main`. Always merge and push to main.
+**Step 2: Push to `gh-pages` for live deployment**
+
+Use `mcp__github__push_files` to push the site files directly to the `gh-pages` branch. The files must be at the **root** of the branch (NOT inside `public/`).
+
+Files to push (map `public/<file>` → `<file>` at root):
+- `index.html`
+- `style.css`
+- `building-model.js`
+- `app.js`
+- `renderer-2d.js`
+- `renderer-3d.js`
+- `ifc-exporter.js`
+- `designs/<name>.json`
+
+Example:
+```
+mcp__github__push_files(
+  owner: "so0374jfow",
+  repo: "architect",
+  branch: "gh-pages",
+  message: "Deploy: <design name>",
+  files: [
+    { path: "app.js", content: <contents of public/app.js> },
+    { path: "designs/<name>.json", content: <json content> },
+    // ... include ALL files that changed
+  ]
+)
+```
+
+**IMPORTANT**: The `gh-pages` branch has files at root level, not in `public/`. Always push changed files there for them to go live. At minimum push `app.js` and `designs/<name>.json` for a new design. Push all JS files if any renderer or model code changed.
 
 ## Visual Self-Check (Screenshot)
 
@@ -257,7 +282,7 @@ After presenting the design:
 4. When they respond, make **targeted edits** to `createDemoModel()` -- don't start from scratch unless requested
 5. Re-run `node scripts/screenshot.mjs`, read the new screenshot, verify changes
 6. Save updated JSON to `public/designs/<name>.json` (overwrite previous)
-7. Commit, push, merge to main, give updated URLs
+7. Push changed files to `gh-pages` via `mcp__github__push_files`, give updated URLs
 
 ## Important Notes
 
@@ -265,6 +290,6 @@ After presenting the design:
 - The `createDemoModel()` function is the ONLY thing you edit in app.js
 - Adjacent rooms share coordinate edges (e.g., room at x=0,width=6 and room at x=6 share the wall at x=6)
 - Both rooms will have their own wall objects at the shared edge -- the renderer handles overlapping walls
-- GitHub Pages deploys from `main` only -- always merge feature branch to main and push
+- GitHub Pages deploys from `gh-pages` branch root -- push files via `mcp__github__push_files` (NOT via git merge to main)
 - The GitHub Pages site is at: `https://so0374jfow.github.io/architect/`
 - Design JSONs go in `public/designs/` (served by GitHub Pages), NOT `designs/` (not served)

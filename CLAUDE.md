@@ -116,6 +116,24 @@ Generates valid IFC4-SPF files with full project/site/building/storey hierarchy,
 - **Section dividers**: `// ─────` used to separate logical sections
 - **Error handling**: throw on validation failures in model functions; return error objects in MCP tools
 
-## CI/CD
+## Deployment (GitHub Pages)
 
-GitHub Actions deploys `public/` to GitHub Pages on push to `main`. No build step needed. Feature branches must be merged to `main` for deployment.
+GitHub Pages is configured to serve from the **`gh-pages` branch root (`/`)**. The GitHub Actions workflow in `.github/workflows/deploy.yml` is **NOT used** (it fails due to environment config issues).
+
+### How to deploy
+
+Use `mcp__github__push_files` to push files directly to the `gh-pages` branch. Files go at the **root** of the branch (NOT inside `public/`).
+
+```
+mcp__github__push_files(
+  owner: "so0374jfow", repo: "architect", branch: "gh-pages",
+  message: "Deploy: <description>",
+  files: [{ path: "app.js", content: "..." }, { path: "designs/foo.json", content: "..." }]
+)
+```
+
+For a new design, push at minimum: `app.js` and `designs/<name>.json`.
+For code changes to renderers/model, push all affected JS files.
+
+**Live site**: `https://so0374jfow.github.io/architect/`
+**Named designs**: `https://so0374jfow.github.io/architect/?load=<name>`
