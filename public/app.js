@@ -12,6 +12,7 @@ import { Renderer3D } from './renderer-3d.js';
 import { downloadIFC } from './ifc-exporter.js';
 import { downloadIfcFile } from './ifc-builder.js';
 import { importIfcFile } from './ifc-reader.js';
+import { generateFacadeScatter, clearFacadeScatter } from './facade-scatter.js';
 
 // ── Initialize model ────────────────────────────────────────────
 
@@ -150,6 +151,23 @@ document.getElementById('btn-export-ifc').addEventListener('click', async () => 
   } catch (err) {
     console.warn('web-ifc export failed, falling back to string template:', err);
     downloadIFC(model);
+  }
+});
+
+let scatterActive = false;
+document.getElementById('btn-scatter').addEventListener('click', () => {
+  if (scatterActive) {
+    clearFacadeScatter(r3d.buildingGroup);
+    scatterActive = false;
+    document.getElementById('btn-scatter').textContent = 'Scatter Facade';
+    statusEl.textContent = 'Scatter cleared';
+  } else {
+    clearFacadeScatter(r3d.buildingGroup);
+    const group = generateFacadeScatter(model, r3d.buildingGroup);
+    scatterActive = true;
+    const count = group.children.length;
+    document.getElementById('btn-scatter').textContent = 'Clear Scatter';
+    statusEl.textContent = `Scattered ${count} spolia objects on facade`;
   }
 });
 
