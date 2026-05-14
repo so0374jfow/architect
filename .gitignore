@@ -2,3 +2,7 @@ node_modules/
 *.ifc
 .DS_Store
 screenshots/
+
+# Investigative artifacts (downloaded video, reference frames, screenshots)
+# kept local while building public/sacred-not-secret/.
+research/
