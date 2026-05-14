@@ -59,11 +59,13 @@ export const HalftoneShader = {
       vec2 centerUv = centerPx / uResolution;
 
       vec3 sampled = texture2D(tDiffuse, centerUv).rgb;
+      // Gamma curve so dim chunks still register but bright surfaces keep
+      // visible inter-dot spacing rather than fusing to a solid blob.
       float l = luma(sampled);
+      l = pow(clamp(l, 0.0, 1.0), 0.7);
 
-      // Dot radius in pixels grows with luma; cap at 0.85 of half-cell.
       float halfCell = uCellPx * 0.5;
-      float dotR = sqrt(clamp(l, 0.0, 1.0)) * halfCell * 0.95;
+      float dotR = sqrt(clamp(l, 0.0, 1.0)) * halfCell * 0.9;
 
       float dist = length(frag - centerPx);
 

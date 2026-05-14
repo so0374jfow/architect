@@ -7,23 +7,25 @@
 import * as THREE from 'three';
 
 const GRANITE = new THREE.MeshStandardMaterial({
-  color: 0xb6b6b6,
-  roughness: 0.62,
+  color: 0xeaeaea,
+  roughness: 0.55,
   metalness: 0.02,
+  emissive: 0x303035,
   flatShading: false,
 });
 
 const GRANITE_DARK = new THREE.MeshStandardMaterial({
-  color: 0x8c8c8c,
-  roughness: 0.78,
+  color: 0xc0c0c0,
+  roughness: 0.7,
   metalness: 0.0,
+  emissive: 0x202024,
 });
 
 const ROOF = new THREE.MeshStandardMaterial({
-  color: 0xe8e8e8,
-  roughness: 0.4,
+  color: 0xffffff,
+  roughness: 0.35,
   metalness: 0.05,
-  emissive: 0x222222,
+  emissive: 0x484848,
 });
 
 function asChunk(mesh, label) {

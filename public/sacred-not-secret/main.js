@@ -21,41 +21,46 @@ const renderer = new THREE.WebGLRenderer({
 });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.1;
+renderer.toneMapping = THREE.LinearToneMapping;
+renderer.toneMappingExposure = 1.6;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x000000);
 
 // ── Lighting ────────────────────────────────────────────────────────────
-// Strong key spotlight from above-front (creates the bright rooftop highlight
-// seen in the reference frames). Stronger ambient + a second fill on the
-// opposite side keep the spires from blacking out under the halftone shader.
-const key = new THREE.SpotLight(0xffffff, 42, 0, Math.PI / 4.5, 0.45, 1.2);
+// The halftone post-process eats a lot of mid-tones, so the underlying
+// scene needs to be bright enough that dots actually show. Strong ambient
+// + multi-direction fill keeps every chunk readable; a focused spot adds
+// the bright rooftop highlight seen in the reference frames.
+const key = new THREE.SpotLight(0xffffff, 80, 0, Math.PI / 4.0, 0.4, 1.0);
 key.position.set(8, 18, 6);
 scene.add(key);
 scene.add(key.target);
 
-const fill = new THREE.DirectionalLight(0xc6cdda, 0.85);
-fill.position.set(-8, 6, -10);
+const fill = new THREE.DirectionalLight(0xeef0f6, 1.6);
+fill.position.set(-8, 9, -10);
 scene.add(fill);
 
-const fill2 = new THREE.DirectionalLight(0x8e95a8, 0.55);
-fill2.position.set(6, 4, -6);
+const fill2 = new THREE.DirectionalLight(0xc8ccd6, 1.1);
+fill2.position.set(8, 6, -4);
 scene.add(fill2);
 
-const ambient = new THREE.AmbientLight(0x4a4e58, 1.35);
+const fill3 = new THREE.DirectionalLight(0xb6bcc8, 0.9);
+fill3.position.set(0, -4, 8);
+scene.add(fill3);
+
+const ambient = new THREE.AmbientLight(0x9fa3ad, 1.6);
 scene.add(ambient);
 
 // Hemisphere — sky tint on top, ground tint underneath. Keeps tumbling
 // fragments readable when they're outside the spotlight cone.
-const hemi = new THREE.HemisphereLight(0xc4c8d2, 0x2a2a30, 0.6);
+const hemi = new THREE.HemisphereLight(0xeaecf2, 0x3a3a44, 1.2);
 scene.add(hemi);
 
 // A radial point light at the cathedral centre — picks up the inside of
 // shattered chunks when they fly outwards.
-const core = new THREE.PointLight(0xfff4d8, 12, 30, 1.5);
+const core = new THREE.PointLight(0xfff4d8, 28, 40, 1.5);
 core.position.set(0, 5, 0);
 scene.add(core);
 
