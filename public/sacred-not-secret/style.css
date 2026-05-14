@@ -1,0 +1,68 @@
+html, body {
+  margin: 0;
+  padding: 0;
+  background: #000;
+  color: #cfcfcf;
+  overflow: hidden;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  -webkit-font-smoothing: antialiased;
+  height: 100%;
+}
+
+#stage {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  display: block;
+}
+
+#overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 24px;
+  z-index: 10;
+  user-select: none;
+}
+
+#title {
+  font-size: 14px;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  opacity: 0.65;
+  mix-blend-mode: difference;
+}
+
+#caption {
+  align-self: center;
+  text-align: center;
+  font-size: 12px;
+  letter-spacing: 0.5em;
+  text-transform: uppercase;
+  opacity: 0.5;
+  margin-top: auto;
+  margin-bottom: auto;
+  position: absolute;
+  bottom: 64px;
+  left: 0;
+  right: 0;
+  pointer-events: none;
+}
+
+#hint {
+  align-self: flex-end;
+  font-size: 10px;
+  letter-spacing: 0.25em;
+  opacity: 0.35;
+  text-transform: uppercase;
+}
+
+@media (max-width: 600px) {
+  #overlay { padding: 14px; }
+  #title { font-size: 11px; }
+  #hint { display: none; }
+}
